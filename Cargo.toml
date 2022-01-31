@@ -1,0 +1,12 @@
+[package]
+name = "learnopengl"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "learnopengl"
+path = "src/lib.rs"
+
+[dependencies]
+gl = "0.14.0"
+sdl2 = "0.35.1"
