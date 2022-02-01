@@ -1,7 +1,7 @@
+use crate::gl_function;
 use gl;
 use std::mem::{size_of, transmute};
 use std::ptr;
-use crate::gl_function;
 
 pub struct VertexArray(gl::types::GLuint);
 
@@ -16,13 +16,21 @@ impl VertexArray {
         gl_function!(BindVertexArray(self.0));
     }
 
-    pub fn set_vertex_attrib<T>(gl_type: gl::types::GLenum, attribute: u32, size: u32, normalized: bool) {
-        let normalized = if normalized {
-            gl::TRUE
-        } else {
-            gl::FALSE
-        };
-        gl_function!(VertexAttribPointer(attribute, size as _, gl_type, normalized, size as i32 * size_of::<T>() as i32, ptr::null()));
+    pub fn set_vertex_attrib<T>(
+        gl_type: gl::types::GLenum,
+        attribute: u32,
+        size: u32,
+        normalized: bool,
+    ) {
+        let normalized = if normalized { gl::TRUE } else { gl::FALSE };
+        gl_function!(VertexAttribPointer(
+            attribute,
+            size as _,
+            gl_type,
+            normalized,
+            size as i32 * size_of::<T>() as i32,
+            ptr::null()
+        ));
         gl_function!(EnableVertexAttribArray(attribute));
     }
 
@@ -32,17 +40,17 @@ impl VertexArray {
         size: u32,
         padding: u32,
         start: u32,
-        normalized: bool) {
-        let normalized = if normalized {
-            gl::TRUE
-        } else {
-            gl::FALSE
-        };
-        gl_function!(
-            VertexAttribPointer(
-                attribute, padding as _, gl_type, normalized, size as i32 * size_of::<T>() as i32, transmute(start as usize * size_of::<T>())
-            )
-        );
+        normalized: bool,
+    ) {
+        let normalized = if normalized { gl::TRUE } else { gl::FALSE };
+        gl_function!(VertexAttribPointer(
+            attribute,
+            padding as _,
+            gl_type,
+            normalized,
+            size as i32 * size_of::<T>() as i32,
+            transmute(start as usize * size_of::<T>())
+        ));
         gl_function!(EnableVertexAttribArray(attribute));
     }
 

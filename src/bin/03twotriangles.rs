@@ -1,22 +1,18 @@
 use gl;
-use learnopengl::gl_function;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::video::GLProfile;
 use learnopengl::buffer::Buffer;
+use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::shader::Shader;
 use learnopengl::vertex_array::VertexArray;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::video::GLProfile;
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/01vertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/01fragment.glsl");
 const VERTICES: [f32; 18] = [
-    -0.5f32, -0.5, 0.0,
-    0.5, -0.5, 0.0,
-    0.0,  0.5, 0.0,
-    -0.9, 0.8, 0.0,
-    -0.85, 0.9, 0.0,
-    -0.8, 0.8, 0.0,
+    -0.5f32, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0, -0.9, 0.8, 0.0, -0.85, 0.9, 0.0, -0.8, 0.8,
+    0.0,
 ];
 
 pub fn main() -> Result<(), String> {

@@ -1,21 +1,18 @@
 use gl;
+use learnopengl::buffer::Buffer;
 use learnopengl::gl_function;
+use learnopengl::program::Program;
+use learnopengl::shader::Shader;
+use learnopengl::vertex_array::VertexArray;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 use std::ptr;
-use learnopengl::buffer::Buffer;
-use learnopengl::program::Program;
-use learnopengl::shader::Shader;
-use learnopengl::vertex_array::VertexArray;
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/01vertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/01fragment.glsl");
 const VERTICES: [f32; 12] = [
-    0.5f32, 0.5, 0.0,
-    0.5, -0.5, 0.0,
-    -0.5, -0.5, 0.0,
-    -0.5, 0.5, 0.0,
+    0.5f32, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0, -0.5, 0.5, 0.0,
 ];
 const INDICES: [u32; 6] = [0, 1, 3, 1, 2, 3];
 
@@ -72,7 +69,12 @@ pub fn main() -> Result<(), String> {
         gl_function!(Clear(gl::COLOR_BUFFER_BIT));
         program.use_program();
         vertex_array.bind();
-        gl_function!(DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null()));
+        gl_function!(DrawElements(
+            gl::TRIANGLES,
+            6,
+            gl::UNSIGNED_INT,
+            ptr::null()
+        ));
         VertexArray::unbind();
 
         window.gl_swap_window();
