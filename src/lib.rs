@@ -1,8 +1,15 @@
+#![feature(repr128)]
 #[macro_export]
+
 macro_rules! gl_function {
     ($a:ident($($b:tt)*)) => {
         unsafe {
-            gl::$a($($b)*);
-        };
+            gl::$a($($b)*)
+        }
     };
 }
+
+pub mod buffer;
+pub mod program;
+pub mod shader;
+pub mod vertex_array;
