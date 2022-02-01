@@ -1,4 +1,3 @@
-#![feature(repr128)]
 #[macro_export]
 
 macro_rules! gl_function {

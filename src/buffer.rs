@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use std::mem::{size_of, transmute};
 use gl;
 use super::gl_function;

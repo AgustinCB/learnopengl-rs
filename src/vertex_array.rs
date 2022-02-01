@@ -1,7 +1,6 @@
 use gl;
 use std::mem::size_of;
 use std::ptr;
-use sdl2::keyboard::Keycode::P;
 use crate::gl_function;
 
 pub struct VertexArray(gl::types::GLuint);
