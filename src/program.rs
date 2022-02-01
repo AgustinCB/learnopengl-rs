@@ -1,3 +1,4 @@
+use std::ffi::CString;
 use gl;
 use std::ptr;
 use crate::shader::Shader;
@@ -39,6 +40,15 @@ impl Program {
 
     pub fn use_program(&self) {
         gl_function!(UseProgram(self.0));
+    }
+
+    pub fn set_uniform_v4(
+        &self, uniform: &str, x: f32, y: f32, z: f32, w: f32,
+    ) {
+        let c_str = CString::new(uniform).unwrap();
+        let location = gl_function!(GetUniformLocation(self.0, std::mem::transmute(c_str.as_ptr())));
+        eprintln!("{}", location);
+        gl_function!(Uniform4f(location, x, y, z, w));
     }
 }
 
