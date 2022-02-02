@@ -8,7 +8,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 
-const VERTEX_SHADER: &'static str = include_str!("shaders/01vertex.glsl");
+const VERTEX_SHADER: &'static str = include_str!("shaders/02.8.2-horizontalmove.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/01fragment.glsl");
 const VERTICES: [f32; 9] = [-0.5f32, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
 
@@ -61,10 +61,12 @@ pub fn main() -> Result<(), String> {
 
         gl_function!(Clear(gl::COLOR_BUFFER_BIT));
         program.use_program();
+        program.set_uniform_f1("offset", 0.2);
         vertex_array.bind();
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 3));
 
         window.gl_swap_window();
+        sdl_context.timer().unwrap().delay(100);
     }
 
     Ok(())

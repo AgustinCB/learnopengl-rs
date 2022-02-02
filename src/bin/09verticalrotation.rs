@@ -8,7 +8,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 
-const VERTEX_SHADER: &'static str = include_str!("shaders/01vertex.glsl");
+const VERTEX_SHADER: &'static str = include_str!("shaders/02.8.1-verticalrotation.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/01fragment.glsl");
 const VERTICES: [f32; 9] = [-0.5f32, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
 

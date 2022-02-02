@@ -47,14 +47,23 @@ impl Program {
         gl_function!(UseProgram(self.0));
     }
 
+    pub fn set_uniform_f1(&self, uniform: &str, x: f32) {
+        let location = self.find_uniform(uniform);
+        gl_function!(Uniform1f(location, x));
+    }
+
     pub fn set_uniform_v4(&self, uniform: &str, x: f32, y: f32, z: f32, w: f32) {
+        let location = self.find_uniform(uniform);
+        gl_function!(Uniform4f(location, x, y, z, w));
+    }
+
+    fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
         let c_str = CString::new(uniform).unwrap();
         let location = gl_function!(GetUniformLocation(
             self.0,
             std::mem::transmute(c_str.as_ptr())
         ));
-        eprintln!("{}", location);
-        gl_function!(Uniform4f(location, x, y, z, w));
+        location
     }
 }
 
