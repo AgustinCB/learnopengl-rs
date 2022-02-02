@@ -57,6 +57,11 @@ impl Program {
         gl_function!(Uniform4f(location, x, y, z, w));
     }
 
+    pub fn set_uniform_i1(&self, uniform: &str, value: i32) {
+        let location = self.find_uniform(uniform);
+        gl_function!(Uniform1i(location, value));
+    }
+
     fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
         let c_str = CString::new(uniform).unwrap();
         let location = gl_function!(GetUniformLocation(
