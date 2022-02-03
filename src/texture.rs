@@ -29,20 +29,17 @@ impl Texture {
 
     pub fn set_image_2d(&self, width: u32, height: u32, data: &[u8]) {
         match self.2 {
-            TextureType::Texture2D =>
-                gl_function!(
-                    TexImage2D(
-                        self.1,
-                        0,
-                        gl::RGB as _,
-                        width as _,
-                        height as _,
-                        0,
-                        gl::RGB as _,
-                        gl::UNSIGNED_BYTE,
-                        transmute(&(data[0]) as *const u8)
-                    )
-                ),
+            TextureType::Texture2D => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGB as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGB as _,
+                gl::UNSIGNED_BYTE,
+                transmute(&(data[0]) as *const u8)
+            )),
             _ => unimplemented!(),
         }
     }

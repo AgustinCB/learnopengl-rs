@@ -14,14 +14,10 @@ use std::ptr;
 const VERTEX_SHADER: &'static str = include_str!("shaders/04.1-transformtexturevertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/04.1-transformtexturefragment.glsl");
 const VERTICES: [f32; 20] = [
-    0.5f32,  0.5, 0.0,   1.0, 1.0,
-    0.5, -0.5, 0.0,      1.0, 0.0,
-    -0.5, -0.5, 0.0,     0.0, 0.0,
-    -0.5,  0.5, 0.0,     0.0, 1.0,
+    0.5f32, 0.5, 0.0, 1.0, 1.0, 0.5, -0.5, 0.0, 1.0, 0.0, -0.5, -0.5, 0.0, 0.0, 0.0, -0.5, 0.5,
+    0.0, 0.0, 1.0,
 ];
-const INDICES: [u32; 6] = [
-    0, 1, 3, 1, 2, 3,
-];
+const INDICES: [u32; 6] = [0, 1, 3, 1, 2, 3];
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -109,7 +105,12 @@ pub fn main() -> Result<(), String> {
         program.use_program();
         program.set_uniform_fv4("transform", &transform);
         vertex_array.bind();
-        gl_function!(DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null()));
+        gl_function!(DrawElements(
+            gl::TRIANGLES,
+            6,
+            gl::UNSIGNED_INT,
+            ptr::null()
+        ));
 
         window.gl_swap_window();
         timer.delay(100);

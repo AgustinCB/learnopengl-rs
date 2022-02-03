@@ -1,9 +1,9 @@
 use super::gl_function;
 use crate::shader::Shader;
 use gl;
+use nalgebra::Matrix4;
 use std::ffi::CString;
 use std::ptr;
-use nalgebra::Matrix4;
 
 fn check_success(
     resource: gl::types::GLuint,

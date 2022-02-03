@@ -1,26 +1,22 @@
-use std::ptr;
 use gl;
 use learnopengl::buffer::Buffer;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::shader::Shader;
+use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
-use learnopengl::texture::{Texture, TextureType};
+use std::ptr;
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/03.1-texturevertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/03.3.1-twotexturesoneleft.glsl");
 const VERTICES: [f32; 32] = [
-    0.5f32,  0.5, 0.0,   1.0, 0.0, 0.0,   0.55, 0.45,
-    0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   0.55, 0.45,
-    -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.45, 0.45,
-    -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.45, 0.55,
+    0.5f32, 0.5, 0.0, 1.0, 0.0, 0.0, 0.55, 0.45, 0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 0.55, 0.45, -0.5,
+    -0.5, 0.0, 0.0, 0.0, 1.0, 0.45, 0.45, -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.45, 0.55,
 ];
-const INDICES: [u32; 6] = [
-    0, 1, 3, 1, 2, 3,
-];
+const INDICES: [u32; 6] = [0, 1, 3, 1, 2, 3];
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -103,7 +99,12 @@ pub fn main() -> Result<(), String> {
         texture2.bind(gl::TEXTURE1);
         program.use_program();
         vertex_array.bind();
-        gl_function!(DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null()));
+        gl_function!(DrawElements(
+            gl::TRIANGLES,
+            6,
+            gl::UNSIGNED_INT,
+            ptr::null()
+        ));
 
         window.gl_swap_window();
     }
