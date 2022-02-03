@@ -3,6 +3,7 @@ use crate::shader::Shader;
 use gl;
 use std::ffi::CString;
 use std::ptr;
+use nalgebra::Matrix4;
 
 fn check_success(
     resource: gl::types::GLuint,
@@ -60,6 +61,11 @@ impl Program {
     pub fn set_uniform_i1(&self, uniform: &str, value: i32) {
         let location = self.find_uniform(uniform);
         gl_function!(Uniform1i(location, value));
+    }
+
+    pub fn set_uniform_fv4(&self, uniform: &str, matrix: &Matrix4<f32>) {
+        let location = self.find_uniform(uniform);
+        gl_function!(UniformMatrix4fv(location, 1, gl::FALSE, matrix.as_ptr()));
     }
 
     fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
