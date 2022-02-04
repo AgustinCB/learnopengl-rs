@@ -5,50 +5,33 @@ use learnopengl::program::Program;
 use learnopengl::shader::Shader;
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
+use nalgebra::{
+    Matrix4, Perspective3, Point3, Rotation, Rotation3, Scale3, Translation3, Vector, Vector3,
+};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
-use nalgebra::{Matrix4, Perspective3, Point3, Rotation, Rotation3, Scale3, Translation3, Vector, Vector3};
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/05.1-coordtexturevertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/04.1-transformtexturefragment.glsl");
 const VERTICES: [f32; 180] = [
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 0.0f32,
-    0.5f32, -0.5f32, -0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 0.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 1.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32
+    -0.5f32, -0.5f32, -0.5f32, 0.0f32, 0.0f32, 0.5f32, -0.5f32, -0.5f32, 1.0f32, 0.0f32, 0.5f32,
+    0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32, 1.0f32, -0.5f32, 0.5f32,
+    -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 0.0f32, -0.5f32, -0.5f32, 0.5f32,
+    0.0f32, 0.0f32, 0.5f32, -0.5f32, 0.5f32, 1.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32,
+    1.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 1.0f32, -0.5f32, 0.5f32, 0.5f32, 0.0f32, 1.0f32,
+    -0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32,
+    0.5f32, -0.5f32, 1.0f32, 1.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32,
+    -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32,
+    1.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32,
+    1.0f32, 0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, 0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32,
+    0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32,
+    -0.5f32, -0.5f32, 0.0f32, 1.0f32, 0.5f32, -0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, -0.5f32,
+    0.5f32, 1.0f32, 0.0f32, 0.5f32, -0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32, -0.5f32, 0.5f32,
+    0.0f32, 0.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, -0.5f32, 0.5f32, -0.5f32, 0.0f32,
+    1.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32,
+    0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32,
+    0.5f32, -0.5f32, 0.0f32, 1.0f32,
 ];
 
 pub fn main() -> Result<(), String> {
@@ -111,19 +94,19 @@ pub fn main() -> Result<(), String> {
     program.use_program();
     program.set_uniform_i1("texture1", 0);
     program.set_uniform_i1("texture2", 1);
-    program.set_uniform_fv4("projection", &projection.to_homogeneous());
+    program.set_uniform_matrix4("projection", &projection.to_homogeneous());
 
     let cube_positions: [Vector3<f32>; 10] = [
-        Vector3::new( 0.0f32,  0.0f32,   0.0f32),
-        Vector3::new( 2.0f32,  5.0f32, -15.0f32),
-        Vector3::new(-1.5f32, -2.2f32,  -2.5f32),
+        Vector3::new(0.0f32, 0.0f32, 0.0f32),
+        Vector3::new(2.0f32, 5.0f32, -15.0f32),
+        Vector3::new(-1.5f32, -2.2f32, -2.5f32),
         Vector3::new(-3.8f32, -2.0f32, -12.3f32),
-        Vector3::new( 2.4f32, -0.4f32,  -3.5f32),
-        Vector3::new(-1.7f32,  3.0f32,  -7.5f32),
-        Vector3::new( 1.3f32, -2.0f32,  -2.5f32),
-        Vector3::new( 1.5f32,  2.0f32,  -2.5f32),
-        Vector3::new( 1.5f32,  0.2f32,  -1.5f32),
-        Vector3::new(-1.3f32,  1.0f32,  -1.5f32)
+        Vector3::new(2.4f32, -0.4f32, -3.5f32),
+        Vector3::new(-1.7f32, 3.0f32, -7.5f32),
+        Vector3::new(1.3f32, -2.0f32, -2.5f32),
+        Vector3::new(1.5f32, 2.0f32, -2.5f32),
+        Vector3::new(1.5f32, 0.2f32, -1.5f32),
+        Vector3::new(-1.3f32, 1.0f32, -1.5f32),
     ];
     let rotation_vector = Vector3::new(1f32, 0.3f32, 0.5f32);
     let mut delta_time = 0f32;
@@ -148,22 +131,26 @@ pub fn main() -> Result<(), String> {
                     ..
                 } => break 'gameloop,
                 Event::KeyDown {
-                    keycode: Some(Keycode::Up), ..
+                    keycode: Some(Keycode::Up),
+                    ..
                 } => {
                     camera_pos += camera_speed * camera_front;
                 }
                 Event::KeyDown {
-                    keycode: Some(Keycode::Down), ..
+                    keycode: Some(Keycode::Down),
+                    ..
                 } => {
                     camera_pos -= camera_speed * camera_front;
                 }
                 Event::KeyDown {
-                    keycode: Some(Keycode::Right), ..
+                    keycode: Some(Keycode::Right),
+                    ..
                 } => {
                     camera_pos += camera_front.cross(camera_up).normalize() * camera_speed;
                 }
                 Event::KeyDown {
-                    keycode: Some(Keycode::Left), ..
+                    keycode: Some(Keycode::Left),
+                    ..
                 } => {
                     camera_pos -= camera_front.cross(camera_up).normalize() * camera_speed;
                 }
@@ -176,18 +163,19 @@ pub fn main() -> Result<(), String> {
         texture2.bind(gl::TEXTURE1);
         program.use_program();
         vertex_array.bind();
-        let look_at = Matrix4::look_at_rh(&Point3::from(camera_pos), &Point3::from(camera_front), camera_up);
-        program.set_uniform_fv4("view", &look_at);
+        let look_at = Matrix4::look_at_rh(
+            &Point3::from(camera_pos),
+            &Point3::from(camera_front),
+            camera_up,
+        );
+        program.set_uniform_matrix4("view", &look_at);
         for (i, cube) in cube_positions.iter().enumerate() {
             let angle = 20f32 * i as f32;
-            let r = Rotation3::new(rotation_vector * (angle / rotation_vector.magnitude())).to_homogeneous();
+            let r = Rotation3::new(rotation_vector * (angle / rotation_vector.magnitude()))
+                .to_homogeneous();
             let t = Translation3::from(cube.data.0[0]).to_homogeneous();
-            program.set_uniform_fv4("model", &(t * r * model.to_homogeneous()));
-            gl_function!(DrawArrays(
-                gl::TRIANGLES,
-                0,
-                36,
-            ));
+            program.set_uniform_matrix4("model", &(t * r * model.to_homogeneous()));
+            gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
 
         window.gl_swap_window();

@@ -5,11 +5,11 @@ use learnopengl::program::Program;
 use learnopengl::shader::Shader;
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
+use nalgebra::{Perspective3, Rotation, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 use std::ptr;
-use nalgebra::{Perspective3, Rotation, Translation3, Vector3};
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/05.1-coordtexturevertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/04.1-transformtexturefragment.glsl");
@@ -83,9 +83,9 @@ pub fn main() -> Result<(), String> {
     program.use_program();
     program.set_uniform_i1("texture1", 0);
     program.set_uniform_i1("texture2", 1);
-    program.set_uniform_fv4("model", &model.to_homogeneous());
-    program.set_uniform_fv4("view", &view.to_homogeneous());
-    program.set_uniform_fv4("projection", &projection.to_homogeneous());
+    program.set_uniform_matrix4("model", &model.to_homogeneous());
+    program.set_uniform_matrix4("view", &view.to_homogeneous());
+    program.set_uniform_matrix4("projection", &projection.to_homogeneous());
 
     gl_function!(ClearColor(0.3, 0.3, 0.5, 1.0));
     'gameloop: loop {

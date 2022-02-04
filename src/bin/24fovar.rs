@@ -5,50 +5,31 @@ use learnopengl::program::Program;
 use learnopengl::shader::Shader;
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
+use nalgebra::{Perspective3, Rotation, Rotation3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
-use nalgebra::{Perspective3, Rotation, Rotation3, Translation3, Vector3};
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/05.1-coordtexturevertex.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/04.1-transformtexturefragment.glsl");
 const VERTICES: [f32; 180] = [
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 0.0f32,
-    0.5f32, -0.5f32, -0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 0.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 1.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32, -0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32, -0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32,
-    0.5f32,  0.5f32, -0.5f32,  1.0f32, 1.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    0.5f32,  0.5f32,  0.5f32,  1.0f32, 0.0f32,
-    -0.5f32,  0.5f32,  0.5f32,  0.0f32, 0.0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0.0f32, 1.0f32
+    -0.5f32, -0.5f32, -0.5f32, 0.0f32, 0.0f32, 0.5f32, -0.5f32, -0.5f32, 1.0f32, 0.0f32, 0.5f32,
+    0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32, 1.0f32, -0.5f32, 0.5f32,
+    -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 0.0f32, -0.5f32, -0.5f32, 0.5f32,
+    0.0f32, 0.0f32, 0.5f32, -0.5f32, 0.5f32, 1.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32,
+    1.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 1.0f32, -0.5f32, 0.5f32, 0.5f32, 0.0f32, 1.0f32,
+    -0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32,
+    0.5f32, -0.5f32, 1.0f32, 1.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32,
+    -0.5f32, 0.0f32, 1.0f32, -0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32,
+    1.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32,
+    1.0f32, 0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, 0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32,
+    0.5f32, -0.5f32, 0.5f32, 0.0f32, 0.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32,
+    -0.5f32, -0.5f32, 0.0f32, 1.0f32, 0.5f32, -0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, -0.5f32,
+    0.5f32, 1.0f32, 0.0f32, 0.5f32, -0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32, -0.5f32, 0.5f32,
+    0.0f32, 0.0f32, -0.5f32, -0.5f32, -0.5f32, 0.0f32, 1.0f32, -0.5f32, 0.5f32, -0.5f32, 0.0f32,
+    1.0f32, 0.5f32, 0.5f32, -0.5f32, 1.0f32, 1.0f32, 0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32,
+    0.5f32, 0.5f32, 0.5f32, 1.0f32, 0.0f32, -0.5f32, 0.5f32, 0.5f32, 0.0f32, 0.0f32, -0.5f32,
+    0.5f32, -0.5f32, 0.0f32, 1.0f32,
 ];
 
 pub fn main() -> Result<(), String> {
@@ -112,9 +93,9 @@ pub fn main() -> Result<(), String> {
     program.use_program();
     program.set_uniform_i1("texture1", 0);
     program.set_uniform_i1("texture2", 1);
-    program.set_uniform_fv4("model", &model.to_homogeneous());
-    program.set_uniform_fv4("view", &view.to_homogeneous());
-    program.set_uniform_fv4("projection", &projection.to_homogeneous());
+    program.set_uniform_matrix4("model", &model.to_homogeneous());
+    program.set_uniform_matrix4("view", &view.to_homogeneous());
+    program.set_uniform_matrix4("projection", &projection.to_homogeneous());
 
     gl_function!(Enable(gl::DEPTH_TEST));
     gl_function!(ClearColor(0.3, 0.3, 0.5, 1.0));
@@ -132,20 +113,19 @@ pub fn main() -> Result<(), String> {
 
         let mut sdl_timer = sdl_context.timer().unwrap();
         let rotation_vector = Vector3::new(0.5f32, 1f32, 0f32);
-        let it_model = model.to_homogeneous() * Rotation3::new(
-            rotation_vector * (sdl_timer.ticks() as f32 * 50f32.to_radians() / rotation_vector.magnitude())
-        ).to_homogeneous();
+        let it_model = model.to_homogeneous()
+            * Rotation3::new(
+                rotation_vector
+                    * (sdl_timer.ticks() as f32 * 50f32.to_radians() / rotation_vector.magnitude()),
+            )
+            .to_homogeneous();
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
         texture.bind(gl::TEXTURE0);
         texture2.bind(gl::TEXTURE1);
         program.use_program();
-        program.set_uniform_fv4("model", &it_model);
+        program.set_uniform_matrix4("model", &it_model);
         vertex_array.bind();
-        gl_function!(DrawArrays(
-            gl::TRIANGLES,
-            0,
-            36,
-        ));
+        gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
 
         window.gl_swap_window();
         sdl_timer.delay(100);

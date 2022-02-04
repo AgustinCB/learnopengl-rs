@@ -1,5 +1,6 @@
 use gl;
 use learnopengl::buffer::Buffer;
+use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::shader::Shader;
@@ -88,18 +89,37 @@ pub fn main() -> Result<(), String> {
         texture2.generate_mipmap();
     }
     let model = Rotation::from_axis_angle(&Vector3::x_axis(), -55f32.to_radians());
-    let view = Translation3::new(-0.5f32, 0f32, -5f32);
-    let projection = Perspective3::new(800f32 / 600f32, 45f32.to_radians(), 0.1, 100f32);
+    let mut fov = 45f32;
     program.use_program();
     program.set_uniform_i1("texture1", 0);
     program.set_uniform_i1("texture2", 1);
-    program.set_uniform_matrix4("model", &model.to_homogeneous());
-    program.set_uniform_matrix4("view", &view.to_homogeneous());
-    program.set_uniform_matrix4("projection", &projection.to_homogeneous());
+
+    let cube_positions: [Vector3<f32>; 10] = [
+        Vector3::new(0.0f32, 0.0f32, 0.0f32),
+        Vector3::new(2.0f32, 5.0f32, -15.0f32),
+        Vector3::new(-1.5f32, -2.2f32, -2.5f32),
+        Vector3::new(-3.8f32, -2.0f32, -12.3f32),
+        Vector3::new(2.4f32, -0.4f32, -3.5f32),
+        Vector3::new(-1.7f32, 3.0f32, -7.5f32),
+        Vector3::new(1.3f32, -2.0f32, -2.5f32),
+        Vector3::new(1.5f32, 2.0f32, -2.5f32),
+        Vector3::new(1.5f32, 0.2f32, -1.5f32),
+        Vector3::new(-1.3f32, 1.0f32, -1.5f32),
+    ];
+    let rotation_vector = Vector3::new(1f32, 0.3f32, 0.5f32);
+    let mut camera = Camera::new(
+        Vector3::new(0.0f32, 0f32, 3f32),
+        Vector3::new(0f32, 0f32, -1f32),
+        Vector3::y_axis(),
+    );
+    let mut yaw = -90f32;
+    let mut pitch = 0f32;
+    camera.set_front(yaw, pitch);
 
     gl_function!(Enable(gl::DEPTH_TEST));
     gl_function!(ClearColor(0.3, 0.3, 0.5, 1.0));
     'gameloop: loop {
+        let mut sdl_timer = sdl_context.timer().unwrap();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -107,25 +127,40 @@ pub fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'gameloop,
+                Event::MouseMotion { xrel, yrel, .. } => {
+                    let sensitivity = 0.05f32;
+                    let xoffset = xrel as f32 * sensitivity;
+                    let yoffset = yrel as f32 * sensitivity;
+                    yaw += xoffset;
+                    pitch += yoffset;
+                    pitch = pitch.clamp(-89f32, 89f32);
+                    camera.set_front(yaw, pitch);
+                }
+                Event::MouseWheel { y, .. } => {
+                    fov -= y as f32;
+                    fov = fov.clamp(1f32, 45f32);
+                }
                 _ => {}
             }
         }
 
-        let mut sdl_timer = sdl_context.timer().unwrap();
-        let rotation_vector = Vector3::new(0.5f32, 1f32, 0f32);
-        let it_model = model.to_homogeneous()
-            * Rotation3::new(
-                rotation_vector
-                    * (sdl_timer.ticks() as f32 * 50f32.to_radians() / rotation_vector.magnitude()),
-            )
-            .to_homogeneous();
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
         texture.bind(gl::TEXTURE0);
         texture2.bind(gl::TEXTURE1);
         program.use_program();
-        program.set_uniform_matrix4("model", &it_model);
         vertex_array.bind();
-        gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
+        let look_at = camera.look_at_matrix();
+        program.set_uniform_matrix4("view", &look_at);
+        let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32);
+        program.set_uniform_matrix4("projection", &projection.to_homogeneous());
+        for (i, cube) in cube_positions.iter().enumerate() {
+            let angle = 20f32 * i as f32;
+            let r = Rotation3::new(rotation_vector * (angle / rotation_vector.magnitude()))
+                .to_homogeneous();
+            let t = Translation3::from(cube.data.0[0]).to_homogeneous();
+            program.set_uniform_matrix4("model", &(t * r * model.to_homogeneous()));
+            gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
+        }
 
         window.gl_swap_window();
         sdl_timer.delay(100);

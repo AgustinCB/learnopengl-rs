@@ -103,7 +103,7 @@ pub fn main() -> Result<(), String> {
         texture.bind(gl::TEXTURE0);
         texture2.bind(gl::TEXTURE1);
         program.use_program();
-        program.set_uniform_fv4("transform", &transform);
+        program.set_uniform_matrix4("transform", &transform);
         vertex_array.bind();
         gl_function!(DrawElements(
             gl::TRIANGLES,
