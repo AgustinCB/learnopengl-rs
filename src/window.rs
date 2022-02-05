@@ -9,6 +9,8 @@ pub struct Window {
     timer: TimerSubsystem,
     video: VideoSubsystem,
     window: SDL2Window,
+    now: usize,
+    last: usize,
 }
 
 impl Window {
@@ -35,11 +37,23 @@ impl Window {
         let sdl_timer = sdl_context.timer().unwrap();
         Ok(Window {
             events: event_pump,
+            last: 0,
+            now: 0,
             timer: sdl_timer,
             gl_context,
             video,
             window,
         })
+    }
+
+    pub fn start_timer(&mut self) {
+        self.now = self.timer.performance_counter() as _;
+    }
+
+    pub fn delta_time(&mut self) -> f32 {
+        self.last = self.now;
+        self.now = self.timer.performance_counter() as _;
+        (self.now - self.last) as f32 * 1000f32 / self.timer.performance_frequency() as f32
     }
 
     pub fn ticks(&self) -> u32 {
