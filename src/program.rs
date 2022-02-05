@@ -1,7 +1,7 @@
 use super::gl_function;
 use crate::shader::Shader;
 use gl;
-use nalgebra::Matrix4;
+use nalgebra::{Matrix4, Vector3};
 use std::ffi::CString;
 use std::ptr;
 
@@ -56,6 +56,11 @@ impl Program {
     pub fn set_uniform_v4(&self, uniform: &str, x: f32, y: f32, z: f32, w: f32) {
         let location = self.find_uniform(uniform);
         gl_function!(Uniform4f(location, x, y, z, w));
+    }
+
+    pub fn set_uniform_v3(&self, uniform: &str, vector: Vector3<f32>) {
+        let location = self.find_uniform(uniform);
+        gl_function!(Uniform3f(location, vector.data.0[0][0], vector.data.0[0][1], vector.data.0[0][2]));
     }
 
     pub fn set_uniform_i1(&self, uniform: &str, value: i32) {
