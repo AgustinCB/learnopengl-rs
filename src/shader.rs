@@ -1,6 +1,7 @@
 use super::gl_function;
 use gl;
 use std::ffi::CString;
+use std::mem::transmute;
 use std::ptr;
 
 fn check_success(
@@ -13,13 +14,14 @@ fn check_success(
     if status != (gl::TRUE as gl::types::GLint) {
         let mut len = 0;
         gl_function!(GetShaderiv(resource, gl::INFO_LOG_LENGTH, &mut len));
-        let mut buf = Vec::with_capacity(len as usize - 1);
+        let mut buf = [0].repeat(len as _);
         gl_function!(GetShaderInfoLog(
             resource,
             len,
-            ptr::null_mut(),
-            buf.as_mut_ptr() as *mut gl::types::GLchar,
+            transmute(&mut len),
+            transmute(buf.as_mut_ptr()),
         ));
+        eprintln!("{} {}", len, buf.len());
         Err(std::str::from_utf8(&buf)
             .ok()
             .expect("ShaderInfoLog not valid utf8")
