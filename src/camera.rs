@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Point3, Unit, Vector3};
+use nalgebra::{Matrix3, Matrix4, Point3, Translation3, Unit, Vector3};
 
 pub struct Camera {
     position: Vector3<f32>,
@@ -13,6 +13,10 @@ impl Camera {
             front,
             up,
         }
+    }
+
+    pub fn ground(&mut self) {
+        self.position = Vector3::new(self.position.data.0[0][0], 0f32, self.position.data.0[0][2]);
     }
 
     pub fn move_forward(&mut self, speed: f32) {
@@ -50,6 +54,15 @@ impl Camera {
         )
     }
 
+    pub fn manual_look_at_matrix(&self) -> Matrix4<f32> {
+        let direction = (self.position - (self.position + self.front)).normalize();
+        let right = self.up.cross(&direction).normalize();
+        let up = direction.cross(&right);
+        Matrix3::from_columns(&[
+            right, up, direction
+        ]).transpose().to_homogeneous() * Translation3::from(-self.position).to_homogeneous()
+    }
+
     pub fn look_at_target_matrix(&self, target: Vector3<f32>) -> Matrix4<f32> {
         Matrix4::look_at_rh(
             &Point3::from(self.position),
@@ -59,6 +72,6 @@ impl Camera {
     }
 
     fn right(&self) -> Vector3<f32> {
-        self.front.cross(&self.up)
+        self.front.cross(&self.up).normalize()
     }
 }
