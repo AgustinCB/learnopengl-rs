@@ -4,59 +4,16 @@ use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::shader::Shader;
-use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Matrix4, Perspective3, Rotation, Rotation3, Scale3, Translation3, Vector3};
+use nalgebra::{Perspective3, Scale3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
+use learnopengl::cube::Cube;
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/07.3-basiclightgouraud.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/07.3-basiclightfragmentgouraud.glsl");
 const LIGHT_FRAGMENT_SHADER: &'static str = include_str!("shaders/06.1-simplelightlightfragment.glsl");
-const VERTICES: [f32; 216] = [
-    -0.5f32, -0.5f32, -0.5f32,  0f32, 0f32, -1f32,
-    0.5f32, -0.5f32, -0.5f32,   0f32, 0f32, -1f32,
-    0.5f32,  0.5f32, -0.5f32,   0f32, 0f32, -1f32,
-    0.5f32,  0.5f32, -0.5f32,   0f32, 0f32, -1f32,
-    -0.5f32,  0.5f32, -0.5f32,  0f32, 0f32, -1f32,
-    -0.5f32, -0.5f32, -0.5f32,  0f32, 0f32, -1f32,
-
-    -0.5f32, -0.5f32,  0.5f32,  0f32, 0f32, 1f32,
-    0.5f32, -0.5f32,  0.5f32,   0f32, 0f32, 1f32,
-    0.5f32,  0.5f32,  0.5f32,   0f32, 0f32, 1f32,
-    0.5f32,  0.5f32,  0.5f32,   0f32, 0f32, 1f32,
-    -0.5f32,  0.5f32,  0.5f32,  0f32, 0f32, 1f32,
-    -0.5f32, -0.5f32,  0.5f32,  0f32, 0f32, 1f32,
-
-    -0.5f32,  0.5f32,  0.5f32,  -1f32, 0f32, 0f32,
-    -0.5f32,  0.5f32, -0.5f32,  -1f32, 0f32, 0f32,
-    -0.5f32, -0.5f32, -0.5f32,  -1f32, 0f32, 0f32,
-    -0.5f32, -0.5f32, -0.5f32,  -1f32, 0f32, 0f32,
-    -0.5f32, -0.5f32,  0.5f32,  -1f32, 0f32, 0f32,
-    -0.5f32,  0.5f32,  0.5f32,  -1f32, 0f32, 0f32,
-
-    0.5f32,  0.5f32,  0.5f32,  1f32, 0f32, 0f32,
-    0.5f32,  0.5f32, -0.5f32,  1f32, 0f32, 0f32,
-    0.5f32, -0.5f32, -0.5f32,  1f32, 0f32, 0f32,
-    0.5f32, -0.5f32, -0.5f32,  1f32, 0f32, 0f32,
-    0.5f32, -0.5f32,  0.5f32,  1f32, 0f32, 0f32,
-    0.5f32,  0.5f32,  0.5f32,  1f32, 0f32, 0f32,
-
-    -0.5f32, -0.5f32, -0.5f32,  0f32, -1f32, 0f32,
-    0.5f32, -0.5f32, -0.5f32,   0f32, -1f32, 0f32,
-    0.5f32, -0.5f32,  0.5f32,   0f32, -1f32, 0f32,
-    0.5f32, -0.5f32,  0.5f32,   0f32, -1f32, 0f32,
-    -0.5f32, -0.5f32,  0.5f32,  0f32, -1f32, 0f32,
-    -0.5f32, -0.5f32, -0.5f32,  0f32, -1f32, 0f32,
-
-    -0.5f32,  0.5f32, -0.5f32,  0f32, 1f32, 0f32,
-    0.5f32,  0.5f32, -0.5f32,   0f32, 1f32, 0f32,
-    0.5f32,  0.5f32,  0.5f32,   0f32, 1f32, 0f32,
-    0.5f32,  0.5f32,  0.5f32,   0f32, 1f32, 0f32,
-    -0.5f32,  0.5f32,  0.5f32,  0f32, 1f32, 0f32,
-    -0.5f32,  0.5f32, -0.5f32,  0f32, 1f32, 0f32,
-];
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -89,11 +46,12 @@ pub fn main() -> Result<(), String> {
     ])?;
     let vertex_array = VertexArray::new();
     let array_buffer = Buffer::new(gl::ARRAY_BUFFER);
+    let cube = Cube::with_normals();
     vertex_array.bind();
     array_buffer.bind();
-    array_buffer.set_data(&VERTICES, gl::STATIC_DRAW);
-    VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 0, 6, 3, 0, false);
-    VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 1, 6, 3, 3, false);
+    array_buffer.set_data(cube.content(), gl::STATIC_DRAW);
+    VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 0, cube.size() as _, 3, 0, false);
+    VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 1, cube.size() as _, 3, 3, false);
 
     let mut fov = 45f32;
 
@@ -172,11 +130,10 @@ pub fn main() -> Result<(), String> {
         vertex_array.bind();
         let look_at = camera.look_at_matrix();
         let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32);
-        for (i, ((cube, scale), program)) in cube_positions
+        for ((cube, scale), program) in cube_positions
             .iter()
             .zip(scale)
-            .zip(&[&program, &light_program])
-            .enumerate() {
+            .zip(&[&program, &light_program]) {
             program.use_program();
             program.set_uniform_matrix4("view", &look_at);
             program.set_uniform_matrix4("projection", &projection.to_homogeneous());
