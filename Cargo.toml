@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 gl = "0.14.0"
+include_dir = "0.7.2"
 nalgebra = "0.30.1"
 num-traits = "0.2.14"
 sdl2 = "0.35.1"

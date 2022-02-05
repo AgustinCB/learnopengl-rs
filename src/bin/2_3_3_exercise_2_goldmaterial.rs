@@ -1,4 +1,5 @@
 use gl;
+use include_dir::{Dir, include_dir};
 use learnopengl::buffer::Buffer;
 use learnopengl::camera::Camera;
 use learnopengl::gl_function;
@@ -9,21 +10,21 @@ use nalgebra::{Perspective3, Scale3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::cube::Cube;
+use learnopengl::shader_loader::{ShaderLoader, ShaderType};
 use learnopengl::window::Window;
 
-const VERTEX_SHADER: &'static str = include_str!("shaders/07.1-basiclightvertex.glsl");
-const FRAGMENT_SHADER: &'static str = include_str!("shaders/08.1-material.glsl");
-const LIGHT_FRAGMENT_SHADER: &'static str = include_str!("shaders/08.2-lightfragment.glsl");
+static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
 pub fn main() -> Result<(), String> {
     let mut window = Window::new("Gouraud lighting", 800, 600).unwrap();
+    let shader_loader = ShaderLoader::new(&SHADERS_DIR);
     let program = Program::new(vec![
-        Shader::new(gl::VERTEX_SHADER, VERTEX_SHADER).unwrap(),
-        Shader::new(gl::FRAGMENT_SHADER, FRAGMENT_SHADER).unwrap(),
+        shader_loader.load(ShaderType::Vertex, "07.1-basiclightvertex.glsl").unwrap(),
+        shader_loader.load(ShaderType::Fragment, "08.1-material.glsl").unwrap(),
     ])?;
     let light_program = Program::new(vec![
-        Shader::new(gl::VERTEX_SHADER, VERTEX_SHADER).unwrap(),
-        Shader::new(gl::FRAGMENT_SHADER, LIGHT_FRAGMENT_SHADER).unwrap(),
+        shader_loader.load(ShaderType::Vertex, "07.1-basiclightvertex.glsl").unwrap(),
+        shader_loader.load(ShaderType::Fragment, "08.2-lightfragment.glsl").unwrap(),
     ])?;
     let vertex_array = VertexArray::new();
     let array_buffer = Buffer::new(gl::ARRAY_BUFFER);
