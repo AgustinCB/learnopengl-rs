@@ -10,32 +10,14 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 use learnopengl::cube::Cube;
+use learnopengl::window::Window;
 
 const VERTEX_SHADER: &'static str = include_str!("shaders/07.3-basiclightgouraud.glsl");
 const FRAGMENT_SHADER: &'static str = include_str!("shaders/07.3-basiclightfragmentgouraud.glsl");
 const LIGHT_FRAGMENT_SHADER: &'static str = include_str!("shaders/06.1-simplelightlightfragment.glsl");
 
 pub fn main() -> Result<(), String> {
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
-    let attrs = video_subsystem.gl_attr();
-
-    attrs.set_context_major_version(3);
-    attrs.set_context_minor_version(3);
-    attrs.set_context_profile(GLProfile::Core);
-    #[cfg(target_os = "macos")]
-        attrs.set_context_flags().forward_compatible().set();
-
-    let window = video_subsystem
-        .window("rust-sdl2 demo: Video", 800, 600)
-        .position_centered()
-        .opengl()
-        .build()
-        .map_err(|e| e.to_string())?;
-    let _opengl = window.gl_create_context().unwrap();
-    gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
-    let mut event_pump = sdl_context.event_pump()?;
-
+    let mut window = Window::new("Gouraud lighting", 800, 600).unwrap();
     let program = Program::new(vec![
         Shader::new(gl::VERTEX_SHADER, VERTEX_SHADER).unwrap(),
         Shader::new(gl::FRAGMENT_SHADER, FRAGMENT_SHADER).unwrap(),
@@ -73,12 +55,11 @@ pub fn main() -> Result<(), String> {
     gl_function!(Enable(gl::DEPTH_TEST));
     gl_function!(ClearColor(0.3, 0.3, 0.5, 1.0));
     'gameloop: loop {
-        let mut sdl_timer = sdl_context.timer().unwrap();
-        let ticks = sdl_timer.ticks() as f32;
+        let ticks = window.ticks() as f32;
         delta_time = ticks - last_frame;
         last_frame = ticks;
         let camera_speed = 0.01f32 * delta_time;
-        for event in event_pump.poll_iter() {
+        for event in window.events() {
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -147,8 +128,8 @@ pub fn main() -> Result<(), String> {
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
 
-        window.gl_swap_window();
-        sdl_timer.delay(100);
+        window.swap_buffers();
+        window.delay(100);
     }
 
     Ok(())
