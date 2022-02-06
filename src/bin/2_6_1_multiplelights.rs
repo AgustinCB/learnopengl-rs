@@ -5,11 +5,10 @@ use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Perspective3, Translation3, UnitVector3, Vector3};
+use nalgebra::{Perspective3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::cube::Cube;
-use learnopengl::light::{Light, SpotLight};
 use learnopengl::shader_loader::{ShaderLoader, ShaderType};
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::window::Window;
@@ -127,20 +126,19 @@ pub fn main() -> Result<(), String> {
     program.set_uniform_i1("material.diffuse", 0);
     program.set_uniform_i1("material.specular", 1);
     program.set_uniform_f1("material.shininess", 32f32);
-    let mut light = SpotLight::new(
-        UnitVector3::new_normalize(camera.front()),
-        camera.position(),
-        12.5f32.to_radians().cos(),
-        17.5f32.to_radians().cos(),
-        Vector3::new(0.2f32, 0.2f32, 0.2f32),
-        Vector3::new(0.5f32, 0.5f32, 0.5f32),
-        Vector3::new(1f32, 1f32, 1f32),
-        1f32,
-        0.09f32,
-        0.032f32,
-        &light_program,
-    );
-    light.set_light_in_program(&program, "light");
+    program.set_uniform_v3("light.ambient", Vector3::new(0.2f32, 0.2f32, 0.2f32));
+    program.set_uniform_v3("light.diffuse", Vector3::new(0.5f32, 0.5f32, 0.5f32));
+    program.set_uniform_v3("light.specular", Vector3::new(1f32, 1f32, 1f32));
+    program.set_uniform_f1("light.cutOff", 12.5f32.to_radians().cos());
+    program.set_uniform_f1("light.outerCutOff", 17.5f32.to_radians().cos());
+    program.set_uniform_f1("light.constant", 1f32);
+    program.set_uniform_f1("light.linear", 0.09f32);
+    program.set_uniform_f1("light.quadratic", 0.032f32);
+
+    let t = Translation3::from(light_position).to_homogeneous();
+    light_program.use_program();
+    light_program.set_uniform_matrix4("model", &t);
+    light_program.set_uniform_v3("light.specular", Vector3::new(1f32, 1f32, 1f32));
 
     window.start_timer();
     gl_function!(Enable(gl::DEPTH_TEST));
@@ -199,23 +197,23 @@ pub fn main() -> Result<(), String> {
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
         vertex_array.bind();
         let look_at = camera.look_at_matrix();
-        let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32).to_homogeneous();
+        let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32);
         texture.bind(gl::TEXTURE0);
         specular_texture.bind(gl::TEXTURE1);
         program.use_program();
         program.set_uniform_v3("light.position", camera.position());
         program.set_uniform_v3("light.direction", camera.front());
         program.set_uniform_matrix4("view", &look_at);
-        program.set_uniform_matrix4("projection", &projection);
+        program.set_uniform_matrix4("projection", &projection.to_homogeneous());
         program.set_uniform_v3("viewPos", camera.position());
         for cube in cube_positions.iter() {
             let t = Translation3::from(cube.data.0[0]).to_homogeneous();
             program.set_uniform_matrix4("model", &t);
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
-        light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
-        light.set_position(camera.position() - Vector3::repeat(1f32));
-        light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+        light_program.use_program();
+        light_program.set_uniform_matrix4("view", &look_at);
+        light_program.set_uniform_matrix4("projection", &projection.to_homogeneous());
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
 
         window.swap_buffers();

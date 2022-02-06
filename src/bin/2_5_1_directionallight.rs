@@ -5,10 +5,11 @@ use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Perspective3, Translation3, Vector3};
+use nalgebra::{Perspective3, Translation3, UnitVector3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::cube::Cube;
+use learnopengl::light::{DirectionalLight, Light};
 use learnopengl::shader_loader::{ShaderLoader, ShaderType};
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::window::Window;
@@ -117,14 +118,17 @@ pub fn main() -> Result<(), String> {
     );
     let mut yaw = -90f32;
     let mut pitch = 0f32;
+    let directional_light = DirectionalLight::new(
+        UnitVector3::new_normalize(Vector3::new(-0.2f32, -1f32, -0.3f32)),
+        Vector3::new(0.2f32, 0.2f32, 0.2f32),
+        Vector3::new(0.5f32, 0.5f32, 0.5f32),
+        Vector3::new(1f32, 1f32, 1f32),
+    );
     program.use_program();
     program.set_uniform_i1("material.diffuse", 0);
     program.set_uniform_i1("material.specular", 1);
     program.set_uniform_f1("material.shininess", 32f32);
-    program.set_uniform_v3("light.direction", Vector3::new(-0.2f32, -1f32, -0.3f32));
-    program.set_uniform_v3("light.ambient", Vector3::new(0.2f32, 0.2f32, 0.2f32));
-    program.set_uniform_v3("light.diffuse", Vector3::new(0.5f32, 0.5f32, 0.5f32));
-    program.set_uniform_v3("light.specular", Vector3::new(1f32, 1f32, 1f32));
+    directional_light.set_light_in_program(&program, "light");
 
     window.start_timer();
     gl_function!(Enable(gl::DEPTH_TEST));

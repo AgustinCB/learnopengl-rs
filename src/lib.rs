@@ -17,3 +17,4 @@ pub mod vertex_array;
 pub mod cube;
 pub mod window;
 pub mod shader_loader;
+pub mod light;
