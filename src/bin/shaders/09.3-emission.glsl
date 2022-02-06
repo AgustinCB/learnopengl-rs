@@ -1,17 +1,12 @@
 #version 330 core
 
+#include "light.glsl"
+
 struct Material {
     sampler2D diffuse;
     sampler2D specular;
     sampler2D emission;
     float shininess;
-};
-
-struct Light {
-    vec3 position;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
 };
 
 uniform Light light;
