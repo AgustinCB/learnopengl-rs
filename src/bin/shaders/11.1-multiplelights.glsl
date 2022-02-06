@@ -24,7 +24,7 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
 
     vec3 result = calculateDirectionalLight(dirLight, material, norm, viewDir, TexCoords);
-    for (int i = 0; i < NR_POINT_LIGHTS; i++) {
+    for (int i = 0; i < N_POINT_LIGHTS; i++) {
         result += calculatePointLight(pointLights[i], material, norm, FragPos, viewDir, TexCoords);
     }
     result += calculateSpotLight(spotLight, material, norm, FragPos, viewDir, TexCoords);

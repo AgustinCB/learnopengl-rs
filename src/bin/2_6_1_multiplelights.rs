@@ -5,10 +5,11 @@ use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Perspective3, Translation3, Vector3};
+use nalgebra::{Perspective3, Translation3, UnitVector3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::cube::Cube;
+use learnopengl::light::{DirectionalLight, Light, PointLight, SpotLight};
 use learnopengl::shader_loader::{ShaderLoader, ShaderType};
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::window::Window;
@@ -59,7 +60,7 @@ pub fn main() -> Result<(), String> {
     let shader_loader = ShaderLoader::new(&SHADERS_DIR);
     let program = Program::new(vec![
         shader_loader.load(ShaderType::Vertex, "09.1-lightingmapsvertex.glsl").unwrap(),
-        shader_loader.load(ShaderType::Fragment, "10.3-spotlight.glsl").unwrap(),
+        shader_loader.load(ShaderType::Fragment, "11.1-multiplelights.glsl").unwrap(),
     ])?;
     let light_program = Program::new(vec![
         shader_loader.load(ShaderType::Vertex, "09.1-lightingmapsvertex.glsl").unwrap(),
@@ -121,24 +122,51 @@ pub fn main() -> Result<(), String> {
     );
     let mut yaw = -90f32;
     let mut pitch = 0f32;
-    let light_position = Vector3::new(1f32, 1.2f32, -0.5f32);
     program.use_program();
     program.set_uniform_i1("material.diffuse", 0);
     program.set_uniform_i1("material.specular", 1);
     program.set_uniform_f1("material.shininess", 32f32);
-    program.set_uniform_v3("light.ambient", Vector3::new(0.2f32, 0.2f32, 0.2f32));
-    program.set_uniform_v3("light.diffuse", Vector3::new(0.5f32, 0.5f32, 0.5f32));
-    program.set_uniform_v3("light.specular", Vector3::new(1f32, 1f32, 1f32));
-    program.set_uniform_f1("light.cutOff", 12.5f32.to_radians().cos());
-    program.set_uniform_f1("light.outerCutOff", 17.5f32.to_radians().cos());
-    program.set_uniform_f1("light.constant", 1f32);
-    program.set_uniform_f1("light.linear", 0.09f32);
-    program.set_uniform_f1("light.quadratic", 0.032f32);
-
-    let t = Translation3::from(light_position).to_homogeneous();
-    light_program.use_program();
-    light_program.set_uniform_matrix4("model", &t);
-    light_program.set_uniform_v3("light.specular", Vector3::new(1f32, 1f32, 1f32));
+    let directional_light = DirectionalLight::new(
+        UnitVector3::new_normalize(Vector3::new(-0.2f32, -1f32, -0.3f32)),
+        Vector3::new(0.2f32, 0.2f32, 0.2f32),
+        Vector3::new(0.5f32, 0.5f32, 0.5f32),
+        Vector3::new(1f32, 1f32, 1f32),
+    );
+    directional_light.set_light_in_program(&program, "dirLight");
+    let mut spot_light = SpotLight::new(
+        UnitVector3::new_normalize(camera.front()),
+        camera.position(),
+        12.5f32.to_radians().cos(),
+        17.5f32.to_radians().cos(),
+        Vector3::new(0.2f32, 0.2f32, 0.2f32),
+        Vector3::new(0.5f32, 0.5f32, 0.5f32),
+        Vector3::new(1f32, 1f32, 1f32),
+        1f32,
+        0.09f32,
+        0.032f32,
+        &light_program,
+    );
+    spot_light.set_light_in_program(&program, "spotLight");
+    let point_light_positions = [
+        Vector3::new(0.7f32,  0.2f32,  2.0f32),
+        Vector3::new( 2.3f32, -3.3f32, -4.0f32),
+        Vector3::new(-4.0f32,  2.0f32, -12.0f32),
+        Vector3::new( 0.0f32,  0.0f32, -3.0f32)
+    ];
+    let point_lights = point_light_positions.into_iter().enumerate().map(|(i, p)| {
+        let p = PointLight::new(
+            p,
+            Vector3::new(0.2f32, 0.2f32, 0.2f32),
+            Vector3::new(0.5f32, 0.5f32, 0.5f32),
+            Vector3::new(1f32, 1f32, 1f32),
+            1f32,
+            0.09f32,
+            0.032f32,
+            &light_program,
+        );
+        p.set_light_in_program(&program, &("pointLights[".to_string() + &i.to_string() + "]"));
+        p
+    }).collect::<Vec<PointLight<'_>>>();
 
     window.start_timer();
     gl_function!(Enable(gl::DEPTH_TEST));
@@ -197,24 +225,28 @@ pub fn main() -> Result<(), String> {
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
         vertex_array.bind();
         let look_at = camera.look_at_matrix();
-        let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32);
+        let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32).to_homogeneous();
         texture.bind(gl::TEXTURE0);
         specular_texture.bind(gl::TEXTURE1);
         program.use_program();
-        program.set_uniform_v3("light.position", camera.position());
-        program.set_uniform_v3("light.direction", camera.front());
+        program.set_uniform_v3("spotLight.position", camera.position());
+        program.set_uniform_v3("spotLight.direction", camera.front());
         program.set_uniform_matrix4("view", &look_at);
-        program.set_uniform_matrix4("projection", &projection.to_homogeneous());
+        program.set_uniform_matrix4("projection", &projection);
         program.set_uniform_v3("viewPos", camera.position());
         for cube in cube_positions.iter() {
             let t = Translation3::from(cube.data.0[0]).to_homogeneous();
             program.set_uniform_matrix4("model", &t);
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
-        light_program.use_program();
-        light_program.set_uniform_matrix4("view", &look_at);
-        light_program.set_uniform_matrix4("projection", &projection.to_homogeneous());
+        spot_light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
+        spot_light.set_position(camera.position() - Vector3::repeat(1f32));
+        spot_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
+        for point_light in point_lights.iter() {
+            point_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+            gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
+        }
 
         window.swap_buffers();
         window.delay(1000/60);
