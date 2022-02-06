@@ -9,9 +9,11 @@ struct Light {
 
 uniform Light light;
 
+in vec3 FragPos;
+in vec3 Normal;
+in vec2 TexCoords;
+
 out vec4 FragColor;
-out vec3 Normal;
-out vec2 TexCoords;
 
 void main() {
     FragColor = vec4(light.specular, 1.0);
