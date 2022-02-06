@@ -13,9 +13,10 @@ fn check_success(
     gl_function!(GetProgramiv(resource, success_type, &mut status));
 
     if status != (gl::TRUE as gl::types::GLint) {
+        eprintln!("PROGRAM ERROR");
         let mut len = 0;
         gl_function!(GetProgramiv(resource, gl::INFO_LOG_LENGTH, &mut len));
-        let mut buf = Vec::with_capacity(len as usize - 1);
+        let mut buf = [0].repeat(len as usize - 1);
         gl_function!(GetProgramInfoLog(
             resource,
             len,

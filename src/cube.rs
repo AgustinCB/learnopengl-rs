@@ -125,4 +125,18 @@ impl Cube {
     pub fn size(&self) -> u8 {
         self.size
     }
+
+    pub fn add_texture(&mut self, texture_coordinates: &[f32]) {
+        let mut new_content = Vec::new();
+        for i in 0..VERTICES.len() / 3 as usize {
+            let mut temp = Vec::with_capacity(self.size as _);
+            for j in 0..(self.size as _) {
+                temp.push(self.content[i * self.size as usize + j])
+            }
+            temp.extend([texture_coordinates[i * 2], texture_coordinates[i * 2 + 1]]);
+            new_content.extend(&temp);
+        }
+        self.content = new_content;
+        self.size += 2;
+    }
 }

@@ -21,7 +21,6 @@ fn check_success(
             transmute(&mut len),
             transmute(buf.as_mut_ptr()),
         ));
-        eprintln!("{} {}", len, buf.len());
         Err(std::str::from_utf8(&buf)
             .ok()
             .expect("ShaderInfoLog not valid utf8")

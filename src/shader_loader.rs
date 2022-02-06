@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::shader::Shader;
 use gl;
 use include_dir::Dir;

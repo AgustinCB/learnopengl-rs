@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -euo pipefail
+
+mv ~/Desktop/"$1" .
+convert "$1" -flip flipped_"$1"
+stream flipped_"$1" "$1".raw
+rm flipped_"$1" "$1"
