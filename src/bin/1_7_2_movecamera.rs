@@ -6,7 +6,7 @@ use learnopengl::shader::Shader;
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
 use nalgebra::{
-    Matrix4, Perspective3, Point3, Rotation, Rotation3, Scale3, Translation3, Vector, Vector3,
+    Matrix4, Perspective3, Point3, Rotation, Rotation3, Translation3, Vector3,
 };
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;

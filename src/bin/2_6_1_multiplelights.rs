@@ -144,7 +144,6 @@ pub fn main() -> Result<(), String> {
         1f32,
         0.09f32,
         0.032f32,
-        &light_program,
     );
     spot_light.set_light_in_program(&program, "spotLight");
     let point_light_positions = [
@@ -162,11 +161,10 @@ pub fn main() -> Result<(), String> {
             1f32,
             0.09f32,
             0.032f32,
-            &light_program,
         );
         p.set_light_in_program(&program, &("pointLights[".to_string() + &i.to_string() + "]"));
         p
-    }).collect::<Vec<PointLight<'_>>>();
+    }).collect::<Vec<PointLight>>();
 
     window.start_timer();
     gl_function!(Enable(gl::DEPTH_TEST));
@@ -241,10 +239,10 @@ pub fn main() -> Result<(), String> {
         }
         spot_light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
         spot_light.set_position(camera.position() - Vector3::repeat(1f32));
-        spot_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+        spot_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         for point_light in point_lights.iter() {
-            point_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+            point_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
 

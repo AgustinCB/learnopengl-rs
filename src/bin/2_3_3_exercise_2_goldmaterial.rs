@@ -4,7 +4,6 @@ use learnopengl::buffer::Buffer;
 use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
-use learnopengl::shader::Shader;
 use learnopengl::vertex_array::VertexArray;
 use nalgebra::{Perspective3, Scale3, Translation3, Vector3};
 use sdl2::event::Event;

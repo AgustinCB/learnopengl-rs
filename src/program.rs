@@ -4,6 +4,7 @@ use gl;
 use nalgebra::{Matrix4, Vector3};
 use std::ffi::CString;
 use std::ptr;
+use log::warn;
 
 fn check_success(
     resource: gl::types::GLuint,
@@ -13,7 +14,6 @@ fn check_success(
     gl_function!(GetProgramiv(resource, success_type, &mut status));
 
     if status != (gl::TRUE as gl::types::GLint) {
-        eprintln!("PROGRAM ERROR");
         let mut len = 0;
         gl_function!(GetProgramiv(resource, gl::INFO_LOG_LENGTH, &mut len));
         let mut buf = [0].repeat(len as usize - 1);
@@ -80,6 +80,9 @@ impl Program {
             self.0,
             std::mem::transmute(c_str.as_ptr())
         ));
+        if location == -1 {
+            warn!("Uniform {} does not exist", uniform);
+        }
         location
     }
 }

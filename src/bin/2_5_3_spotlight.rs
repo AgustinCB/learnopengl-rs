@@ -122,7 +122,6 @@ pub fn main() -> Result<(), String> {
     );
     let mut yaw = -90f32;
     let mut pitch = 0f32;
-    let light_position = Vector3::new(1f32, 1.2f32, -0.5f32);
     program.use_program();
     program.set_uniform_i1("material.diffuse", 0);
     program.set_uniform_i1("material.specular", 1);
@@ -138,7 +137,6 @@ pub fn main() -> Result<(), String> {
         1f32,
         0.09f32,
         0.032f32,
-        &light_program,
     );
     light.set_light_in_program(&program, "light");
 
@@ -215,7 +213,7 @@ pub fn main() -> Result<(), String> {
         }
         light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
         light.set_position(camera.position() - Vector3::repeat(1f32));
-        light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+        light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
 
         window.swap_buffers();

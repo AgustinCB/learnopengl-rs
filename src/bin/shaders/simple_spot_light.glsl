@@ -11,13 +11,11 @@ struct SpotLight {
     float constant;
     float linear;
     float quadratic;
-    bool set;
 };
 
 vec3 calculateSpotLight(
     SpotLight light, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
 ) {
-    if (!light.set) return vec3(0.0);
     vec3 lightDir = normalize(light.position - fragPos);
     float theta = dot(lightDir, normalize(-light.direction));
 
@@ -33,21 +31,13 @@ vec3 calculateSpotLight(
     float attenuation = 1.0 / (light.constant + light.linear * distance +
                         light.quadratic * (distance * distance));
 
-    vec3 ambient = vec3(0.0);
-    vec3 diffuse = vec3(0.0);
-    if (material.n_diffuse > 0) {
-        ambient += light.ambient * vec3(texture(material.diffuse0, texCoords));
-        diffuse += light.diffuse * diff * vec3(texture(material.diffuse0, texCoords));
+    vec3 ambient = light.ambient * vec3(texture(material.diffuse, texCoords));
+    vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, texCoords));
+    vec3 specular = light.specular * spec * vec3(texture(material.specular, texCoords));
 
-        ambient *= attenuation;
-        diffuse *= attenuation * intensity;
-    }
-
-    vec3 specular = vec3(0.0);
-    if (material.n_specular > 0) {
-        specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
-        specular *= attenuation * intensity;
-    }
+    ambient *= attenuation;
+    diffuse *= attenuation * intensity;
+    specular *= attenuation * intensity;
 
     return ambient + diffuse + specular;
 }

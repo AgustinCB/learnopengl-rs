@@ -4,9 +4,8 @@ use learnopengl::camera::Camera;
 use learnopengl::gl_function;
 use learnopengl::program::Program;
 use learnopengl::shader::Shader;
-use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Matrix4, Perspective3, Rotation, Rotation3, Scale3, Translation3, Vector3};
+use nalgebra::{Perspective3, Scale3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
@@ -172,11 +171,10 @@ pub fn main() -> Result<(), String> {
         vertex_array.bind();
         let look_at = camera.look_at_matrix();
         let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32);
-        for (i, ((cube, scale), program)) in cube_positions
+        for ((cube, scale), program) in cube_positions
             .iter()
             .zip(scale)
-            .zip(&[&program, &light_program])
-            .enumerate() {
+            .zip(&[&program, &light_program]) {
             program.use_program();
             program.set_uniform_matrix4("view", &look_at);
             program.set_uniform_matrix4("projection", &projection.to_homogeneous());

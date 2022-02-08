@@ -1,8 +1,8 @@
 #version 330 core
 
-#include "material.glsl"
+#include "simple_material.glsl"
 
-#include "point_light.glsl"
+#include "simple_point_light.glsl"
 
 uniform PointLight light;
 uniform Material material;

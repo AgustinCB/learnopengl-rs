@@ -144,7 +144,6 @@ pub fn main() -> Result<(), String> {
         1f32,
         0.09f32,
         0.032f32,
-        &light_program,
     );
     spot_light.set_light_in_program(&program, "spotLight");
     let point_light_positions = [
@@ -162,11 +161,10 @@ pub fn main() -> Result<(), String> {
             1f32,
             0.09f32,
             0.032f32,
-            &light_program,
         );
         p.set_light_in_program(&program, &("pointLights[".to_string() + &i.to_string() + "]"));
         p
-    }).collect::<Vec<PointLight<'_>>>();
+    }).collect::<Vec<PointLight>>();
 
     window.start_timer();
     gl_function!(Enable(gl::DEPTH_TEST));
@@ -223,11 +221,9 @@ pub fn main() -> Result<(), String> {
         }
 
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
-        vertex_array.bind();
+        VertexArray::unbind();
         let look_at = camera.look_at_matrix();
         let projection = Perspective3::new(800f32 / 600f32, fov.to_radians(), 0.1, 100f32).to_homogeneous();
-        texture.bind(gl::TEXTURE0);
-        specular_texture.bind(gl::TEXTURE1);
         program.use_program();
         program.set_uniform_v3("spotLight.position", camera.position());
         program.set_uniform_v3("spotLight.direction", camera.front());
@@ -236,15 +232,19 @@ pub fn main() -> Result<(), String> {
         program.set_uniform_v3("viewPos", camera.position());
         for cube in cube_positions.iter() {
             let t = Translation3::from(cube.data.0[0]).to_homogeneous();
+            vertex_array.bind();
+            texture.bind(gl::TEXTURE0);
+            specular_texture.bind(gl::TEXTURE1);
             program.set_uniform_matrix4("model", &t);
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
+        eprintln!("GOT ONE! {} {:?}", spot_light.position, spot_light.direction);
         spot_light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
         spot_light.set_position(camera.position() - Vector3::repeat(1f32));
-        spot_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+        spot_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         for point_light in point_lights.iter() {
-            point_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+            point_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
 

@@ -1,9 +1,9 @@
 #version 330 core
 
-#include "material.glsl"
-#include "directional_light.glsl"
-#include "point_light.glsl"
-#include "spot_light.glsl"
+#include "simple_material.glsl"
+#include "simple_directional_light.glsl"
+#include "simple_point_light.glsl"
+#include "simple_spot_light.glsl"
 
 #define N_POINT_LIGHTS 4
 uniform DirectionalLight dirLight;

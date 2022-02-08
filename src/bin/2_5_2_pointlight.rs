@@ -136,7 +136,6 @@ pub fn main() -> Result<(), String> {
         1f32,
         0.09f32,
         0.032f32,
-        &light_program,
     );
     point_light.set_light_in_program(&program, "light");
 
@@ -209,7 +208,7 @@ pub fn main() -> Result<(), String> {
             program.set_uniform_matrix4("model", &t);
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36));
         }
-        point_light.set_light_drawing_program("light.specular", "model", ("view", &look_at), ("projection", &projection));
+        point_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));
         gl_function!(DrawArrays(gl::TRIANGLES, 0, 36));
 
         window.swap_buffers();

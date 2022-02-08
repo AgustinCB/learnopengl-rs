@@ -1,3 +1,6 @@
+use nalgebra::{Vector2, Vector3};
+use crate::ecs::components::{Mesh, TextureInfo};
+
 const VERTICES: [f32; 108] = [
     -0.5f32, -0.5f32, -0.5f32,
     0.5f32, -0.5f32, -0.5f32,
@@ -85,6 +88,79 @@ const NORMALS: [f32; 108] = [
     0f32, 1f32, 0f32,
     0f32, 1f32, 0f32,
 ];
+
+static TEXTURE_COORDS: [f32; 72] = [
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+    0f32, 0f32,
+    1f32, 0f32,
+    1f32, 1f32,
+    1f32, 1f32,
+    0f32, 1f32,
+    0f32, 0f32,
+];
+
+fn unflatten_vector3(points: &[f32]) -> Vec<Vector3<f32>> {
+    let mut result = vec![];
+    for i in 0..points.len()/3 {
+        result.push(Vector3::new(
+            points[i * 3],
+            points[i * 3 + 1],
+            points[i * 3 + 2],
+        ));
+    }
+    result
+}
+
+fn unflatten_vector2(points: &[f32]) -> Vec<Vector2<f32>> {
+    let mut result = vec![];
+    for i in 0..points.len()/2 {
+        result.push(Vector2::new(
+            points[i * 2],
+            points[i * 2 + 1],
+        ));
+    }
+    result
+}
+
+pub fn cube_mesh(textures: Vec<TextureInfo>) -> Mesh {
+    Mesh {
+        vertices: unflatten_vector3(&VERTICES),
+        normals: Some(unflatten_vector3(&NORMALS)),
+        indices: None,
+        textures: Some(textures),
+        texture_coordinates: Some(unflatten_vector2(&TEXTURE_COORDS)),
+        shininess: None,
+    }
+}
 
 pub struct Cube {
     content: Vec<f32>,

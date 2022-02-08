@@ -8,7 +8,6 @@ use learnopengl::vertex_array::VertexArray;
 use nalgebra::{Perspective3, Scale3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::video::GLProfile;
 use learnopengl::cube::Cube;
 use learnopengl::window::Window;
 

@@ -1,8 +1,8 @@
 #[macro_export]
-
 macro_rules! gl_function {
     ($a:ident($($b:tt)*)) => {
         unsafe {
+            log::trace!("gl{}({})", stringify!($a), stringify!($($b)*));
             gl::$a($($b)*)
         }
     };
@@ -18,3 +18,4 @@ pub mod cube;
 pub mod window;
 pub mod shader_loader;
 pub mod light;
+pub mod ecs;

@@ -5,7 +5,7 @@ use learnopengl::program::Program;
 use learnopengl::shader::Shader;
 use learnopengl::texture::{Texture, TextureType};
 use learnopengl::vertex_array::VertexArray;
-use nalgebra::{Perspective3, Rotation, Rotation3, Scale3, Translation3, Vector3};
+use nalgebra::{Perspective3, Rotation, Rotation3, Translation3, Vector3};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;

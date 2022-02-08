@@ -1,9 +1,10 @@
-use nalgebra::{Matrix3, Matrix4, Point3, Translation3, Unit, Vector3};
+use nalgebra::{Matrix3, Matrix4, Perspective3, Point3, Translation3, Unit, Vector3};
 
 pub struct Camera {
     position: Vector3<f32>,
     front: Vector3<f32>,
     up: Unit<Vector3<f32>>,
+    fov: f32,
 }
 
 impl Camera {
@@ -12,6 +13,7 @@ impl Camera {
             position,
             front,
             up,
+            fov: 45f32,
         }
     }
 
@@ -21,6 +23,19 @@ impl Camera {
 
     pub fn front(&self) -> Vector3<f32> {
         self.front
+    }
+
+    pub fn fov(&self) -> f32 {
+        self.fov
+    }
+
+    pub fn move_fov(&mut self, offset: f32) {
+        self.fov += offset as f32;
+        self.fov = self.fov.clamp(1f32, 45f32);
+    }
+
+    pub fn projection(&self) -> Matrix4<f32> {
+        Perspective3::new(800f32 / 600f32, self.fov.to_radians(), 0.1, 100f32).to_homogeneous()
     }
 
     pub fn ground(&mut self) {
