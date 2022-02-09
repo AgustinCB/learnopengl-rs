@@ -7,7 +7,7 @@ use include_dir::{Dir, include_dir};
 use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
-use crate::ecs::components::{Mesh, Shader, TextureInfo, Transform};
+use crate::ecs::components::{Mesh, Model, Shader, TextureInfo, Transform};
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
 use crate::program::Program;
@@ -148,6 +148,33 @@ impl RenderingSystem {
         }
         Ok(())
     }
+
+    fn render_mesh(&self, shader: &Shader, mesh: &Mesh) {
+        shader.vertex_array.bind();
+        let mut diffuse_index = 0;
+        let mut specular_index = 0;
+        if let Some(infos) = &mesh.textures {
+            for (texture, info) in shader.textures.iter().zip(infos.iter()) {
+                texture.bind(gl::TEXTURE0 + info.id as u32);
+                let (texture_type, texture_index) = if info.texture_type == MaterialTextureType::Diffuse {
+                    let index = diffuse_index;
+                    diffuse_index += 1;
+                    ("diffuse", index)
+                } else {
+                    let index = specular_index;
+                    specular_index += 1;
+                    ("specular", index)
+                };
+                self.meshes_program.set_uniform_i1(&format!("material.{}{}", texture_type, texture_index), info.id as i32);
+            }
+        }
+        self.meshes_program.set_uniform_i1("material.n_diffuse", diffuse_index);
+        self.meshes_program.set_uniform_i1("material.n_specular", specular_index);
+        self.meshes_program.set_uniform_f1("material.shininess", 32f32);
+        let n_vertices = mesh.vertices.len();
+        gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
+        VertexArray::unbind();
+    }
 }
 
 impl System for RenderingSystem {
@@ -183,30 +210,13 @@ impl System for RenderingSystem {
         self.meshes_program.set_uniform_matrix4("view", &(*self.main_camera).borrow().look_at_matrix());
         for (_e, (shader, mesh, transform)) in world.query::<(&Shader, &Mesh, &Transform)>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
-            shader.vertex_array.bind();
-            let mut diffuse_index = 0;
-            let mut specular_index = 0;
-            if let Some(infos) = &mesh.textures {
-                for (texture, info) in shader.textures.iter().zip(infos.iter()) {
-                    texture.bind(gl::TEXTURE0 + info.id as u32);
-                    let (texture_type, texture_index) = if info.texture_type == MaterialTextureType::Diffuse {
-                        let index = diffuse_index;
-                        diffuse_index += 1;
-                        ("diffuse", index)
-                    } else {
-                        let index = specular_index;
-                        specular_index += 1;
-                        ("specular", index)
-                    };
-                    self.meshes_program.set_uniform_i1(&format!("material.{}{}", texture_type, texture_index), info.id as i32);
-                }
+            self.render_mesh(shader, mesh);
+        }
+        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().iter() {
+            self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+            for (mesh, shader) in model.0.iter() {
+                self.render_mesh(shader, mesh);
             }
-            self.meshes_program.set_uniform_i1("material.n_diffuse", diffuse_index);
-            self.meshes_program.set_uniform_i1("material.n_specular", specular_index);
-            self.meshes_program.set_uniform_f1("material.shininess", 32f32);
-            let n_vertices = mesh.vertices.len();
-            gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
-            VertexArray::unbind();
         }
         self.light_program.use_program();
         self.draw_lights::<DirectionalLight>(world)?;

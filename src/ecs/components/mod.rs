@@ -137,7 +137,7 @@ impl Mesh {
     }
 }
 
-pub struct Model(pub Vec<Mesh>);
+pub struct Model(pub Vec<(Mesh, Shader)>);
 pub struct Shader {
     pub(crate) vertex_array: VertexArray,
     pub(crate) vertex_buffer: Buffer,
