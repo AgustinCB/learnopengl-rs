@@ -1,8 +1,33 @@
 use nalgebra::{ArrayStorage, Matrix, Matrix4, Rotation3, Scale3, Translation3, U1, Vector2, Vector3};
 use russimp::texture::TextureType;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 use crate::buffer::Buffer;
+use crate::ecs::systems::input::InputType;
 use crate::texture::Texture;
 use crate::vertex_array::VertexArray;
+
+pub struct Input {
+    pub input_types: Vec<InputType>,
+    pub(crate) events: Vec<Event>,
+}
+
+impl Input {
+    pub fn new(input_types: Vec<InputType>) -> Input {
+        Input {
+            input_types,
+            events: vec![],
+        }
+    }
+}
+
+pub struct FpsCamera {
+    pub camera_speed: f32,
+}
+
+pub struct QuitControl {
+    pub quit_keycode: Keycode,
+}
 
 #[derive(Clone, Debug)]
 pub struct TextureInfo {

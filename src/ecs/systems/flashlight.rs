@@ -19,7 +19,11 @@ impl System for FlashLightSystem {
         Ok(())
     }
 
-    fn update(&self, world: &mut World) -> Result<(), String> {
+    fn early_update(&self, _world: &mut World, _delta_time: f32) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn update(&self, world: &mut World, _delta_time: f32) -> Result<(), String> {
         for (_e, (flashlight, spotlight)) in world.query_mut::<(&FlashLight, &mut SpotLight)>() {
             spotlight.set_direction(UnitVector3::new_normalize((*self.camera).borrow().front() - flashlight.offset_from_camera));
             spotlight.set_position((*self.camera).borrow().position() - flashlight.offset_from_camera);
@@ -27,7 +31,7 @@ impl System for FlashLightSystem {
         Ok(())
     }
 
-    fn late_update(&self, _world: &mut World) -> Result<(), String> {
+    fn late_update(&self, _world: &mut World, _delta_time: f32) -> Result<(), String> {
         Ok(())
     }
 }

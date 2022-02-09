@@ -1,11 +1,12 @@
 use gl;
-use sdl2::{EventPump, TimerSubsystem, VideoSubsystem};
+use sdl2::{EventPump, Sdl, TimerSubsystem, VideoSubsystem};
 use sdl2::event::EventPollIterator;
 use sdl2::video::{GLContext, GLProfile, Window as SDL2Window};
 
 pub struct Window {
-    events: EventPump,
+    events: Option<EventPump>,
     gl_context: GLContext,
+    sdl_context: Sdl,
     timer: TimerSubsystem,
     video: VideoSubsystem,
     window: SDL2Window,
@@ -33,13 +34,13 @@ impl Window {
             .map_err(|e| e.to_string())?;
         let gl_context = window.gl_create_context().unwrap();
         gl::load_with(|s| video.gl_get_proc_address(s) as *const std::os::raw::c_void);
-        let event_pump = sdl_context.event_pump()?;
         let sdl_timer = sdl_context.timer().unwrap();
         Ok(Window {
-            events: event_pump,
+            events: None,
             last: 0,
             now: 0,
             timer: sdl_timer,
+            sdl_context,
             gl_context,
             video,
             window,
@@ -68,7 +69,14 @@ impl Window {
         self.timer.delay(ms as _);
     }
 
+    pub fn get_pumper(&mut self) -> EventPump {
+        self.sdl_context.event_pump().unwrap()
+    }
+
     pub fn events(&mut self) -> EventPollIterator {
-        self.events.poll_iter()
+        if self.events.is_none() {
+            self.events = Some(self.get_pumper())
+        }
+        self.events.as_mut().unwrap().poll_iter()
     }
 }

@@ -43,9 +43,9 @@ impl World {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn early_update(&mut self, delta_time: f32) {
         for system in self.systems.iter() {
-            handle_result(system.update(&mut self.world)
+            handle_result(system.early_update(&mut self.world, delta_time)
                 .map_err(|s| {
                     format!("There was an error on {}: {}", system.name(), &s)
                 })
@@ -53,9 +53,19 @@ impl World {
         }
     }
 
-    pub fn late_update(&mut self) {
+    pub fn update(&mut self, delta_time: f32) {
         for system in self.systems.iter() {
-            handle_result(system.late_update(&mut self.world)
+            handle_result(system.update(&mut self.world, delta_time)
+                .map_err(|s| {
+                    format!("There was an error on {}: {}", system.name(), &s)
+                })
+            );
+        }
+    }
+
+    pub fn late_update(&mut self, delta_time: f32) {
+        for system in self.systems.iter() {
+            handle_result(system.late_update(&mut self.world, delta_time)
                 .map_err(|s| {
                     format!("There was an error on {}: {}", system.name(), &s)
                 })

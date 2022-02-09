@@ -1,19 +1,19 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use gl;
 use learnopengl::camera::Camera;
-use learnopengl::gl_function;
 use learnopengl::cube::cube_mesh;
-use learnopengl::ecs::components::{TextureInfo, Transform};
+use learnopengl::ecs::components::{FpsCamera, Input, QuitControl, TextureInfo, Transform};
 use learnopengl::ecs::systems::rendering::RenderingSystem;
 use learnopengl::ecs::world::World;
 use learnopengl::light::{DirectionalLight, FlashLight, PointLight, SpotLight};
 use learnopengl::window::Window;
 use nalgebra::{Rotation3, UnitVector3, Vector3};
 use russimp::texture::TextureType;
-use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::ecs::systems::flashlight::FlashLightSystem;
+use learnopengl::ecs::systems::fps_camera::FpsCameraSystem;
+use learnopengl::ecs::systems::input::{InputSystem, InputType};
+use learnopengl::ecs::systems::quit_system::QuitSystem;
 
 pub fn main() -> Result<(), String> {
     env_logger::init();
@@ -73,8 +73,6 @@ pub fn main() -> Result<(), String> {
             }
         ));
     }
-    let mut yaw = -90f32;
-    let mut pitch = 0f32;
     let directional_light = DirectionalLight::new(
         UnitVector3::new_normalize(Vector3::new(-0.2f32, -1f32, -0.3f32)),
         Vector3::new(0.2f32, 0.2f32, 0.2f32),
@@ -117,66 +115,27 @@ pub fn main() -> Result<(), String> {
     for point_light in point_lights {
         world.get_mut().spawn((point_light, light_cube.clone(), rendering.shader_for_mesh(&light_cube)?));
     }
+    world.get_mut().spawn((Input::new(vec![InputType::Quit, InputType::Keyboard]), QuitControl {
+        quit_keycode: Keycode::Escape,
+    }));
+    world.get_mut().spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
+        camera_speed: 0.1f32,
+    }));
+    let game_ended = Rc::new(RefCell::new(false));
     world.add_system(Box::new(rendering));
+    world.add_system(Box::new(InputSystem { event_pumper: RefCell::new(window.get_pumper()) }));
+    world.add_system(Box::new(QuitSystem { game_ended: game_ended.clone() }));
     world.add_system(Box::new(FlashLightSystem { camera: camera.clone() }));
+    world.add_system(Box::new(FpsCameraSystem { camera: camera.clone() }));
 
     window.start_timer();
     world.start();
-    gl_function!(Enable(gl::DEPTH_TEST));
-    gl_function!(ClearColor(1f32, 1f32, 1f32, 1.0));
-    'gameloop: loop {
+    while !*game_ended.borrow() {
         let delta_time = window.delta_time();
-        let camera_speed = 0.01f32 * delta_time;
-        for event in window.events() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'gameloop,
-                Event::KeyDown {
-                    keycode: Some(Keycode::W),
-                    ..
-                } => {
-                    (*camera).borrow_mut().move_forward(camera_speed);
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::S),
-                    ..
-                } => {
-                    (*camera).borrow_mut().move_forward(-camera_speed);
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::D),
-                    ..
-                } => {
-                    (*camera).borrow_mut().move_right(camera_speed);
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::A),
-                    ..
-                } => {
-                    (*camera).borrow_mut().move_right(-camera_speed);
-                }
-                Event::MouseMotion { xrel, yrel, .. } => {
-                    let sensitivity = 0.2f32;
-                    let xoffset = xrel as f32 * sensitivity;
-                    let yoffset = yrel as f32 * sensitivity;
-                    yaw += xoffset;
-                    pitch += yoffset;
-                    pitch = pitch.clamp(-89f32, 89f32);
-                    (*camera).borrow_mut().set_front(yaw, pitch);
-                }
-                Event::MouseWheel { y, .. } => {
-                    (*camera).borrow_mut().move_fov(-(y as f32));
-                }
-                _ => {}
-            }
-        }
 
-        gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
-        world.update();
-        world.late_update();
+        world.early_update(delta_time);
+        world.update(delta_time);
+        world.late_update(delta_time);
 
         window.swap_buffers();
 

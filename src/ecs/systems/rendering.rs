@@ -159,14 +159,21 @@ impl System for RenderingSystem {
         for (_e, (shader, mesh)) in world.query_mut::<(&Shader, &Mesh)>() {
             self.setup_gl_objects(shader, mesh)?;
         }
+        gl_function!(Enable(gl::DEPTH_TEST));
+        gl_function!(ClearColor(1f32, 1f32, 1f32, 1.0));
         Ok(())
     }
 
-    fn update(&self, _world: &mut World) -> Result<(), String> {
+    fn early_update(&self, _world: &mut World, _delta_time: f32) -> Result<(), String> {
         Ok(())
     }
 
-    fn late_update(&self, world: &mut World) -> Result<(), String> {
+    fn update(&self, _world: &mut World, _delta_time: f32) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn late_update(&self, world: &mut World, _delta_time: f32) -> Result<(), String> {
+        gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT));
         self.meshes_program.use_program();
         self.set_lights::<DirectionalLight>(world, "directional_lights");
         self.set_lights::<SpotLight>(world, "spot_lights");

@@ -5,6 +5,8 @@ pub struct Camera {
     front: Vector3<f32>,
     up: Unit<Vector3<f32>>,
     fov: f32,
+    yaw: f32,
+    pitch: f32,
 }
 
 impl Camera {
@@ -14,6 +16,8 @@ impl Camera {
             front,
             up,
             fov: 45f32,
+            pitch: 0f32,
+            yaw: -90f32,
         }
     }
 
@@ -63,10 +67,19 @@ impl Camera {
     }
 
     pub fn set_front(&mut self, yaw: f32, pitch: f32) {
+        self.yaw = yaw;
+        self.pitch = pitch;
         let x = yaw.to_radians().cos() * pitch.to_radians().cos();
         let y = pitch.to_radians().sin();
         let z = yaw.to_radians().sin() * pitch.to_radians().cos();
         self.front = Vector3::new(x, y, z).normalize();
+    }
+
+    pub fn move_front(&mut self, yaw_offset: f32, pitch_offset: f32) {
+        let yaw = self.yaw + yaw_offset;
+        let mut pitch = self.pitch + pitch_offset;
+        pitch = pitch.clamp(-89f32, 89f32);
+        self.set_front(yaw, pitch);
     }
 
     pub fn look_at_matrix(&self) -> Matrix4<f32> {
