@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use hecs::DynamicBundle;
 use nalgebra::Vector3;
+use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
-use crate::ecs::components::{Mesh, Transform};
+use crate::ecs::components::{FpsCamera, Input, Mesh, QuitControl, Transform};
 use crate::ecs::systems::fps_camera::FpsCameraSystem;
-use crate::ecs::systems::input::InputSystem;
+use crate::ecs::systems::input::{InputSystem, InputType};
 use crate::ecs::systems::quit_system::QuitSystem;
 use crate::ecs::systems::rendering::RenderingSystem;
 use crate::ecs::systems::system::System;
@@ -91,6 +92,12 @@ impl Game {
     }
 
     pub fn play_with_fps_camera(&mut self, systems: Vec<Box<dyn System>>) -> Result<(), String> {
+        self.spawn((Input::new(vec![InputType::Quit, InputType::Keyboard]), QuitControl {
+            quit_keycode: Keycode::Escape,
+        }));
+        self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
+            camera_speed: 0.1f32,
+        }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;
         self.world.add_system(Box::new(rendering));

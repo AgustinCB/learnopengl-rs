@@ -1,11 +1,9 @@
 use learnopengl::cube::cube_mesh;
-use learnopengl::ecs::components::{FpsCamera, Input, QuitControl, TextureInfo, Transform};
+use learnopengl::ecs::components::{TextureInfo, Transform};
 use learnopengl::light::{DirectionalLight, PointLight, SpotLight};
 use nalgebra::{Rotation3, UnitVector3, Vector3};
 use russimp::texture::TextureType;
-use sdl2::keyboard::Keycode;
 use learnopengl::ecs::systems::flashlight::FlashLightSystem;
-use learnopengl::ecs::systems::input::InputType;
 use learnopengl::game::Game;
 
 pub fn main() -> Result<(), String> {
@@ -99,12 +97,6 @@ pub fn main() -> Result<(), String> {
     for point_light in point_lights {
         game.spawn_light(point_light, &light_cube)?;
     }
-    game.spawn((Input::new(vec![InputType::Quit, InputType::Keyboard]), QuitControl {
-        quit_keycode: Keycode::Escape,
-    }));
-    game.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-        camera_speed: 0.1f32,
-    }));
     game.play_with_fps_camera(vec![
         Box::new(FlashLightSystem { camera: game.camera().clone() })
     ])
