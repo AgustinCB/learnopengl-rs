@@ -12,6 +12,7 @@ pub fn main() -> Result<(), String> {
         800,
         600,
         60,
+        Vector3::new(1f32, 1f32, 1f32),
         "09.1-lightingmapsvertex.glsl",
         "12.1-modelloading.glsl",
         "09.1-lightingmapsvertex.glsl",
@@ -22,16 +23,12 @@ pub fn main() -> Result<(), String> {
         TextureInfo {
             id: 0,
             texture_type: TextureType::Diffuse,
-            width: 512,
-            height: 512,
-            path: format!("{}/resource/container2.raw", env!("CARGO_MANIFEST_DIR")),
+            path: format!("{}/resource/container2.png", env!("CARGO_MANIFEST_DIR")),
         },
         TextureInfo {
             id: 1,
             texture_type: TextureType::Specular,
-            width: 512,
-            height: 512,
-            path: format!("{}/resource/container2_specular.png.raw", env!("CARGO_MANIFEST_DIR")),
+            path: format!("{}/resource/container2_specular.png", env!("CARGO_MANIFEST_DIR")),
         },
     ]);
 

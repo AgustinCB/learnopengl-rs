@@ -2,6 +2,7 @@ use super::gl_function;
 use gl;
 use std::mem::{size_of, transmute};
 
+#[derive(Debug)]
 pub struct Buffer(gl::types::GLuint, gl::types::GLenum);
 
 impl Buffer {

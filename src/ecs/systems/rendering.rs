@@ -1,9 +1,12 @@
 use std::cell::RefCell;
-use std::fs::File;
-use std::io::{BufReader, Read};
+use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 use hecs::World;
+use image::EncodableLayout;
+use image::io::Reader;
 use include_dir::{Dir, include_dir};
+use nalgebra::Vector3;
 use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
@@ -18,14 +21,17 @@ use crate::vertex_array::VertexArray;
 static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
 pub struct RenderingSystem {
+    clear_color: Vector3<f32>,
     light_program: Program,
     main_camera: Rc<RefCell<Camera>>,
     meshes_program: Program,
+    textures_loaded: HashMap<String, Arc<Texture>>,
 }
 
 impl RenderingSystem {
     pub fn new(
         camera: Rc<RefCell<Camera>>,
+        clear_color: Vector3<f32>,
         light_vertex_shader: &'static str,
         light_fragment_shader: &'static str,
         meshes_vertex_shader: &'static str,
@@ -33,6 +39,7 @@ impl RenderingSystem {
     ) -> Result<RenderingSystem, String> {
         let shader_loader = ShaderLoader::new(&SHADERS_DIR);
         Ok(RenderingSystem {
+            clear_color,
             main_camera: camera,
             light_program: Program::new(vec![
                 shader_loader.load(ShaderType::Vertex, light_vertex_shader)?,
@@ -42,14 +49,15 @@ impl RenderingSystem {
                 shader_loader.load(ShaderType::Vertex, meshes_vertex_shader)?,
                 shader_loader.load(ShaderType::Fragment, meshes_fragment_shader)?,
             ])?,
+            textures_loaded: HashMap::new(),
         })
     }
 
     pub fn shader_for_mesh(&mut self, mesh: &Mesh) -> Result<Shader, String> {
-        let vertex_array = VertexArray::new();
-        let vertex_buffer = Buffer::new(gl::ARRAY_BUFFER);
+        let vertex_array = Arc::new(VertexArray::new());
+        let vertex_buffer = Arc::new(Buffer::new(gl::ARRAY_BUFFER));
         let elements_buffer = if mesh.indices.is_some() {
-            Some(Buffer::new(gl::ELEMENT_ARRAY_BUFFER))
+            Some(Arc::new(Buffer::new(gl::ELEMENT_ARRAY_BUFFER)))
         } else {
             None
         };
@@ -100,27 +108,35 @@ impl RenderingSystem {
         Ok(())
     }
 
-    fn setup_textures(&self, textures: &Option<Vec<TextureInfo>>) -> Result<Vec<Texture>, String> {
+    fn setup_textures(&mut self, textures: &Option<Vec<TextureInfo>>) -> Result<Vec<Arc<Texture>>, String> {
         match textures {
             None => Ok(vec![]),
             Some(textures) => {
                 textures.iter().map(|t| {
-                    let texture = Texture::new(TextureType::Texture2D);
-                    texture.bind(gl::TEXTURE0 + t.id as u32);
-                    texture.set_parameter(gl::TEXTURE_WRAP_S, gl::REPEAT);
-                    texture.set_parameter(gl::TEXTURE_WRAP_T, gl::REPEAT);
-                    texture.set_parameter(gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR);
-                    texture.set_parameter(gl::TEXTURE_MAG_FILTER, gl::LINEAR);
-                    let f = File::open(&t.path)
-                        .map_err(|e| e.to_string())?;
-                    let mut reader = BufReader::new(f);
-                    let mut buffer = Vec::new();
-                    reader.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
-                    texture.set_image_2d(t.width as u32, t.height as u32, &buffer);
-                    texture.generate_mipmap();
-                    Ok(texture)
-                }).collect::<Result<Vec<Texture>, String>>()
+                    self.texture_info_to_texture(t)
+                }).collect::<Result<Vec<Arc<Texture>>, String>>()
             }
+        }
+    }
+
+    fn texture_info_to_texture(&mut self, texture_info: &TextureInfo) -> Result<Arc<Texture>, String> {
+        if let Some(texture) = self.textures_loaded.get(&texture_info.path) {
+            Ok(texture.clone())
+        } else {
+            let texture = Arc::new(Texture::new(TextureType::Texture2D));
+            texture.bind(gl::TEXTURE0 + texture_info.id as u32);
+            texture.set_parameter(gl::TEXTURE_WRAP_S, gl::REPEAT);
+            texture.set_parameter(gl::TEXTURE_WRAP_T, gl::REPEAT);
+            texture.set_parameter(gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR);
+            texture.set_parameter(gl::TEXTURE_MAG_FILTER, gl::LINEAR);
+            let image = Reader::open(&texture_info.path).map_err(|e| e.to_string())?
+                .decode().map_err(|e| e.to_string())?
+                .flipv()
+                .to_rgb8();
+            texture.set_image_2d(image.width() as u32, image.height() as u32, image.as_bytes());
+            texture.generate_mipmap();
+            self.textures_loaded.insert(texture_info.path.clone(), texture.clone());
+            Ok(texture)
         }
     }
 
@@ -138,11 +154,11 @@ impl RenderingSystem {
         let look_at_matrix = (*self.main_camera).borrow().look_at_matrix();
         let projection = (*self.main_camera).borrow().projection();
         for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>() {
-            shader.vertex_array.bind();
             light.set_light_drawing_program(
                 &self.light_program, "light.specular", "model", ("view", &look_at_matrix), ("projection", &projection)
             );
             let n_vertices = mesh.vertices.len();
+            shader.vertex_array.bind();
             gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32,));
             VertexArray::unbind();
         }
@@ -150,7 +166,6 @@ impl RenderingSystem {
     }
 
     fn render_mesh(&self, shader: &Shader, mesh: &Mesh) {
-        shader.vertex_array.bind();
         let mut diffuse_index = 0;
         let mut specular_index = 0;
         if let Some(infos) = &mesh.textures {
@@ -170,8 +185,10 @@ impl RenderingSystem {
         }
         self.meshes_program.set_uniform_i1("material.n_diffuse", diffuse_index);
         self.meshes_program.set_uniform_i1("material.n_specular", specular_index);
-        self.meshes_program.set_uniform_f1("material.shininess", 32f32);
+        let shininess = mesh.shininess.clone().unwrap_or(32f32);
+        self.meshes_program.set_uniform_f1("material.shininess", shininess);
         let n_vertices = mesh.vertices.len();
+        shader.vertex_array.bind();
         gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
         VertexArray::unbind();
     }
@@ -186,8 +203,13 @@ impl System for RenderingSystem {
         for (_e, (shader, mesh)) in world.query_mut::<(&Shader, &Mesh)>() {
             self.setup_gl_objects(shader, mesh)?;
         }
+        for (_e, model) in world.query::<&Model>().iter() {
+            for (mesh, shader) in model.0.iter() {
+                self.setup_gl_objects(shader, mesh)?;
+            }
+        }
         gl_function!(Enable(gl::DEPTH_TEST));
-        gl_function!(ClearColor(1f32, 1f32, 1f32, 1.0));
+        gl_function!(ClearColor(self.clear_color.x, self.clear_color.y, self.clear_color.z, 1.0));
         Ok(())
     }
 
@@ -208,7 +230,7 @@ impl System for RenderingSystem {
         self.meshes_program.set_uniform_v3("viewPos" , (*self.main_camera).borrow().position());
         self.meshes_program.set_uniform_matrix4("projection", &(*self.main_camera).borrow().projection());
         self.meshes_program.set_uniform_matrix4("view", &(*self.main_camera).borrow().look_at_matrix());
-        for (_e, (shader, mesh, transform)) in world.query::<(&Shader, &Mesh, &Transform)>().iter() {
+        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             self.render_mesh(shader, mesh);
         }

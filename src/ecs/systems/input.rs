@@ -7,7 +7,7 @@ use sdl2::keyboard::Keycode;
 use crate::ecs::components::Input;
 use crate::ecs::systems::system::System;
 
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum InputType {
     Keyboard,
     Mouse,

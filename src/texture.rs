@@ -2,13 +2,14 @@ use crate::gl_function;
 use gl;
 use std::mem::transmute;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum TextureType {
     Texture1D = gl::TEXTURE_1D as isize,
     Texture2D = gl::TEXTURE_2D as isize,
     Texture3D = gl::TEXTURE_3D as isize,
 }
 
+#[derive(Debug)]
 pub struct Texture(pub(crate) gl::types::GLuint, gl::types::GLenum, TextureType);
 
 impl Texture {

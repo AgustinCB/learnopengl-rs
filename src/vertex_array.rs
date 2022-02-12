@@ -3,6 +3,7 @@ use gl;
 use std::mem::{size_of, transmute};
 use std::ptr;
 
+#[derive(Debug)]
 pub struct VertexArray(gl::types::GLuint);
 
 impl VertexArray {

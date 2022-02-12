@@ -1,12 +1,15 @@
+use std::sync::Arc;
 use nalgebra::{ArrayStorage, Matrix, Matrix4, Rotation3, Scale3, Translation3, U1, Vector2, Vector3};
 use russimp::texture::TextureType;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use crate::buffer::Buffer;
 use crate::ecs::systems::input::InputType;
+use crate::ecs::systems::rendering::RenderingSystem;
 use crate::texture::Texture;
 use crate::vertex_array::VertexArray;
 
+#[derive(Clone, Debug)]
 pub struct Input {
     pub input_types: Vec<InputType>,
     pub(crate) events: Vec<Event>,
@@ -21,10 +24,12 @@ impl Input {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FpsCamera {
     pub camera_speed: f32,
 }
 
+#[derive(Clone, Debug)]
 pub struct QuitControl {
     pub quit_keycode: Keycode,
 }
@@ -33,11 +38,10 @@ pub struct QuitControl {
 pub struct TextureInfo {
     pub id: usize,
     pub texture_type: TextureType,
-    pub width: usize,
-    pub height: usize,
     pub path: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct Transform {
     pub position: Vector3<f32>,
     pub rotation: Rotation3<f32>,
@@ -52,8 +56,10 @@ impl Transform {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Velocity(pub Vector3<f32>);
-#[derive(Clone)]
+
+#[derive(Clone, Debug)]
 pub struct Mesh {
     pub vertices: Vec<Vector3<f32>>,
     pub normals: Option<Vec<Vector3<f32>>>,
@@ -137,10 +143,25 @@ impl Mesh {
     }
 }
 
+#[derive(Debug)]
 pub struct Model(pub Vec<(Mesh, Shader)>);
+
+impl Model {
+    pub fn from_meshes(meshes: Vec<Mesh>, rendering: &mut RenderingSystem) -> Result<Model, String> {
+        Ok(Model(
+            meshes.into_iter()
+                .map(|m| {
+                    let shader = rendering.shader_for_mesh(&m)?;
+                    Ok((m, shader))
+                })
+                .collect::<Result<Vec<(Mesh, Shader)>, String>>()?
+        ))
+    }
+}
+#[derive(Debug, Clone)]
 pub struct Shader {
-    pub(crate) vertex_array: VertexArray,
-    pub(crate) vertex_buffer: Buffer,
-    pub(crate) elements_buffer: Option<Buffer>,
-    pub(crate) textures: Vec<Texture>
+    pub(crate) vertex_array: Arc<VertexArray>,
+    pub(crate) vertex_buffer: Arc<Buffer>,
+    pub(crate) elements_buffer: Option<Arc<Buffer>>,
+    pub(crate) textures: Vec<Arc<Texture>>
 }

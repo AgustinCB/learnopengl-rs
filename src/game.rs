@@ -4,7 +4,7 @@ use hecs::DynamicBundle;
 use nalgebra::Vector3;
 use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
-use crate::ecs::components::{FpsCamera, Input, Mesh, QuitControl, Transform};
+use crate::ecs::components::{FpsCamera, Input, Mesh, Model, QuitControl, Transform};
 use crate::ecs::systems::fps_camera::FpsCameraSystem;
 use crate::ecs::systems::input::{InputSystem, InputType};
 use crate::ecs::systems::quit_system::QuitSystem;
@@ -12,6 +12,7 @@ use crate::ecs::systems::rendering::RenderingSystem;
 use crate::ecs::systems::system::System;
 use crate::ecs::world::World;
 use crate::light::{FlashLight, Light, SpotLight};
+use crate::loader::load_model;
 use crate::window::Window;
 
 pub struct Game {
@@ -29,6 +30,7 @@ impl Game {
         width: usize,
         height: usize,
         fps: usize,
+        clear_color: Vector3<f32>,
         model_vertex_shader: &'static str,
         model_fragment_shader: &'static str,
         light_vertex_shader: &'static str,
@@ -44,6 +46,7 @@ impl Game {
         )));
         let rendering = RenderingSystem::new(
             camera.clone(),
+            clear_color,
             light_vertex_shader,
             light_fragment_shader,
             model_vertex_shader,
@@ -63,21 +66,34 @@ impl Game {
         self.camera.clone()
     }
 
+    pub fn spawn_model(&mut self, model: Vec<Mesh>, transform: Transform) -> Result<(), String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        self.world.get_mut().spawn((
+            Model::from_meshes(model, rendering)?,
+            transform
+        ));
+
+        Ok(())
+    }
+
+    pub fn spawn_model_from_file(&mut self, model: &str, transform: Transform) -> Result<(), String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        let model = load_model(model, rendering)?;
+        self.world.get_mut().spawn((model, transform));
+        Ok(())
+    }
+
     pub fn spawn_mesh(&mut self, mesh: &Mesh, transform: Transform) -> Result<(), String> {
-        let shader = {
-            let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
-            rendering.shader_for_mesh(&mesh)?
-        };
+        let shader = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?
+            .shader_for_mesh(&mesh)?;
         self.world.get_mut().spawn((mesh.clone(), shader, transform));
         Ok(())
     }
 
     pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<(), String> {
-        let shader = {
-            let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
-            rendering.shader_for_mesh(&mesh)?
-        };
-        self.world.get_mut().spawn((mesh.clone(), light, shader));
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        let shader = rendering.shader_for_mesh(&mesh)?;
+        self.world.get_mut().spawn((mesh.clone(), shader, light));
         Ok(())
     }
 
@@ -96,7 +112,7 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.1f32,
+            camera_speed: 0.05f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;
@@ -120,6 +136,7 @@ impl Game {
             self.window.swap_buffers();
 
             self.window.delay(1000/self.fps);
+            // break;
         }
         Ok(())
     }
