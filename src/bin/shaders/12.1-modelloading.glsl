@@ -34,6 +34,6 @@ void main()
         result += calculateSpotLight(spot_lights[i], material, norm, FragPos, viewDir, TexCoords);
     }
 
-    // FragColor = vec4(result, 1.0);
-    FragColor = texture(material.diffuse0, TexCoords);
+    FragColor = vec4(result, 1.0);
+    // FragColor = texture(material.diffuse0, TexCoords);
 }

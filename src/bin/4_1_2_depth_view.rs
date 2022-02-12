@@ -1,0 +1,56 @@
+use nalgebra::{Rotation3, UnitVector3, Vector3};
+use russimp::texture::TextureType;
+use learnopengl::cube::cube_mesh;
+use learnopengl::ecs::components::{TextureInfo, Transform};
+use learnopengl::game::Game;
+use learnopengl::light::DirectionalLight;
+use learnopengl::plane::build_plane;
+
+pub fn main() -> Result<(), String> {
+    let mut game = Game::new(
+        "Depth testing",
+        800,
+        600,
+        60,
+        Vector3::new(0f32, 0f32, 0f32),
+        "09.1-lightingmapsvertex.glsl",
+        "13.1-depth_view.glsl",
+        "09.1-lightingmapsvertex.glsl",
+        "09.1-lightfragment.glsl",
+    )?;
+    let directional_light = DirectionalLight::new(
+        UnitVector3::new_normalize(Vector3::new(-0.2f32, -1f32, -0.3f32)),
+        Vector3::new(0.2f32, 0.2f32, 0.2f32),
+        Vector3::new(0.5f32, 0.5f32, 0.5f32),
+        Vector3::new(1f32, 1f32, 1f32),
+    );
+    let light_cube = cube_mesh(vec![]);
+    game.spawn_light(directional_light, &light_cube)?;
+    let cube = cube_mesh(vec![
+        TextureInfo {
+            id: 0,
+            texture_type: TextureType::Diffuse,
+            path: format!("{}/resource/marble.jpg", env!("CARGO_MANIFEST_DIR")),
+        }
+    ]);
+    let floor = build_plane(-0.5f32, 5f32, vec![
+        TextureInfo {
+            id: 0,
+            texture_type: TextureType::Diffuse,
+            path: format!("{}/resource/metal.png", env!("CARGO_MANIFEST_DIR")),
+        }
+    ]);
+    game.spawn_mesh(&cube, Transform {
+        position: Vector3::new(-1f32, 0f32, -1f32),
+        rotation: Rotation3::identity(),
+        scale: Vector3::new(1f32, 1f32, 1f32),
+    })?;
+    game.spawn_mesh(&cube, Transform {
+        position: Vector3::new(2f32, 0f32, 0f32),
+        rotation: Rotation3::identity(),
+        scale: Vector3::new(1f32, 1f32, 1f32),
+    })?;
+    game.spawn_mesh(&floor, Transform::identity())?;
+    game.play_with_fps_camera(vec![])?;
+    Ok(())
+}

@@ -1,0 +1,55 @@
+use nalgebra::{Vector2, Vector3};
+use crate::ecs::components::{Mesh, TextureInfo};
+
+const VERTICES: [f32; 18] = [
+    1.0f32, 1.0f32, 1.0f32,
+    -1.0f32, 1.0f32, 1.0f32,
+    -1.0f32, 1.0f32, -1.0f32,
+    1.0f32, 1.0f32, 1.0f32,
+    -1.0f32, 1.0f32, -1.0f32,
+    1.0f32, 1.0f32, -1.0f32,
+];
+
+const NORMALS: [Vector3<f32>; 6] = [
+    Vector3::new(0f32, 0f32, 1f32); 6
+];
+
+const TEXTURE_COORDINATES: [Vector2<f32>; 6] = [
+    Vector2::new(2f32, 0f32),
+    Vector2::new(0f32, 0f32),
+    Vector2::new(0f32, 2f32),
+    Vector2::new(2f32, 0f32),
+    Vector2::new(0f32, 2f32),
+    Vector2::new(2f32, 2f32),
+];
+
+pub fn build_plane(y_position: f32, scale: f32, textures: Vec<TextureInfo>) -> Mesh {
+    let mut vertices = vec![];
+    for i in 0..VERTICES.len() / 3 {
+        vertices.push(
+            Vector3::new(
+                VERTICES[i * 3] * scale,
+                y_position,
+                VERTICES[i * 3 + 2] * scale,
+            )
+        );
+    }
+    let textures = if textures.len() == 0 {
+        None
+    } else {
+        Some(textures)
+    };
+    let texture_coordinates = if textures.is_none() {
+        None
+    } else {
+        Some(TEXTURE_COORDINATES.to_vec())
+    };
+    Mesh {
+        textures,
+        texture_coordinates,
+        vertices,
+        normals: Some(NORMALS.to_vec()),
+        indices: None,
+        shininess: None,
+    }
+}

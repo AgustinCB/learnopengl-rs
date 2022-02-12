@@ -12,7 +12,7 @@ use crate::vertex_array::VertexArray;
 #[derive(Clone, Debug)]
 pub struct Input {
     pub input_types: Vec<InputType>,
-    pub(crate) events: Vec<Event>,
+    pub events: Vec<Event>,
 }
 
 impl Input {
@@ -49,6 +49,14 @@ pub struct Transform {
 }
 
 impl Transform {
+    pub fn identity() -> Transform {
+        Transform {
+            position: Vector3::new(0f32, 0f32, 0f32),
+            rotation: Rotation3::identity(),
+            scale: Vector3::new(1f32, 1f32, 1f32),
+        }
+    }
+
     pub fn get_model_matrix(&self) -> Matrix4<f32> {
         let t = Translation3::from(self.position);
         let s = Scale3::from(self.scale);

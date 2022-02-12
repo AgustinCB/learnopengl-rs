@@ -1,6 +1,7 @@
 use crate::gl_function;
 use gl;
 use std::mem::transmute;
+use image::ColorType;
 
 #[derive(Clone, Copy, Debug)]
 pub enum TextureType {
@@ -26,6 +27,29 @@ impl Texture {
 
     pub fn generate_mipmap(&self) {
         gl_function!(GenerateMipmap(self.1));
+    }
+
+    pub fn set_image_2d_with_type(&self, width: u32, height: u32, data: &[u8], color_type: ColorType) -> Result<(), String> {
+        let gl_type = match color_type {
+            ColorType::Rgb8 => Ok(gl::RGB),
+            ColorType::Rgba8 => Ok(gl::RGBA),
+            t => Err(format!("Unsupported format {:?}", &t)),
+        }?;
+        match self.2 {
+            TextureType::Texture2D => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl_type as _,
+                width as _,
+                height as _,
+                0,
+                gl_type as _,
+                gl::UNSIGNED_BYTE,
+                transmute(&(data[0]) as *const u8)
+            )),
+            _ => unimplemented!(),
+        };
+        Ok(())
     }
 
     pub fn set_image_2d(&self, width: u32, height: u32, data: &[u8]) {

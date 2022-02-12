@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use hecs::World;
-use image::EncodableLayout;
 use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use nalgebra::Vector3;
@@ -131,9 +130,13 @@ impl RenderingSystem {
             texture.set_parameter(gl::TEXTURE_MAG_FILTER, gl::LINEAR);
             let image = Reader::open(&texture_info.path).map_err(|e| e.to_string())?
                 .decode().map_err(|e| e.to_string())?
-                .flipv()
-                .to_rgb8();
-            texture.set_image_2d(image.width() as u32, image.height() as u32, image.as_bytes());
+                .flipv();
+            texture.set_image_2d_with_type(
+                image.width() as u32,
+                image.height() as u32,
+                image.as_bytes(),
+                image.color()
+            )?;
             texture.generate_mipmap();
             self.textures_loaded.insert(texture_info.path.clone(), texture.clone());
             Ok(texture)
