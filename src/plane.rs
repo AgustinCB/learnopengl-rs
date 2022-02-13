@@ -15,15 +15,15 @@ const NORMALS: [Vector3<f32>; 6] = [
 ];
 
 const TEXTURE_COORDINATES: [Vector2<f32>; 6] = [
-    Vector2::new(2f32, 0f32),
+    Vector2::new(1f32, 0f32),
     Vector2::new(0f32, 0f32),
-    Vector2::new(0f32, 2f32),
-    Vector2::new(2f32, 0f32),
-    Vector2::new(0f32, 2f32),
-    Vector2::new(2f32, 2f32),
+    Vector2::new(0f32, 1f32),
+    Vector2::new(1f32, 0f32),
+    Vector2::new(0f32, 1f32),
+    Vector2::new(1f32, 1f32),
 ];
 
-pub fn build_plane(y_position: f32, scale: f32, textures: Vec<TextureInfo>) -> Mesh {
+pub fn build_plane(y_position: f32, scale: f32, texture_scale: f32, textures: Vec<TextureInfo>) -> Mesh {
     let mut vertices = vec![];
     for i in 0..VERTICES.len() / 3 {
         vertices.push(
@@ -42,7 +42,7 @@ pub fn build_plane(y_position: f32, scale: f32, textures: Vec<TextureInfo>) -> M
     let texture_coordinates = if textures.is_none() {
         None
     } else {
-        Some(TEXTURE_COORDINATES.to_vec())
+        Some(TEXTURE_COORDINATES.to_vec().into_iter().map(|v| v * texture_scale).collect())
     };
     Mesh {
         textures,

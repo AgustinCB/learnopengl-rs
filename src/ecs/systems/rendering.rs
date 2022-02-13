@@ -1,15 +1,17 @@
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use hecs::World;
+use hecs::{Entity, World};
 use image::io::Reader;
 use include_dir::{Dir, include_dir};
+use log::warn;
 use nalgebra::{Scale3, Vector3};
 use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
-use crate::ecs::components::{Border, Mesh, Model, Shader, TextureInfo, Transform};
+use crate::ecs::components::{Border, Mesh, Model, Shader, TextureInfo, Transform, Transparent};
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
 use crate::program::Program;
@@ -263,18 +265,66 @@ impl RenderingSystem {
     }
 
     fn render_non_bordered_objects(&self, world: &mut World) {
-        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().iter() {
+        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             gl_function!(StencilMask(0x00));
             self.render_mesh(shader, mesh);
         }
-        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().iter() {
+        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             gl_function!(StencilMask(0x00));
             for (mesh, shader) in model.0.iter() {
                 self.render_mesh(shader, mesh);
             }
         }
+    }
+
+    fn render_transparent_objects(&self, world: &mut World) -> Result<(), String> {
+        self.meshes_program.use_program();
+        let mut entities = vec![];
+        for (e, transform) in world.query::<&Transform>()
+            .with::<Transparent>()
+            .with::<Shader>()
+            .iter() {
+            entities.push((transform.position.data.0[0][2], e));
+        }
+        entities.sort_by(|(z, _), (z1, _)|
+            if (*z - *z1).abs() < f32::EPSILON {
+                Ordering::Equal
+            } else if *z < *z1 {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        );
+        for (_, e) in entities {
+            self.render_entity(e, world)?;
+        }
+        Ok(())
+    }
+
+    fn render_entity(&self, e: Entity, world: &mut World) -> Result<(), String> {
+        let mut mesh = world.query_one::<(&Mesh, &Shader, &Transform)>(e).map_err(|e| e.to_string())?;
+        match mesh.get() {
+            Some((mesh, shader, transform)) => {
+                self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+                gl_function!(StencilMask(0x00));
+                self.render_mesh(shader, mesh);
+            }
+            None => {
+                let mut model = world.query_one::<(&Model, &Transform)>(e).map_err(|e| e.to_string())?;
+                if let Some((model, transform)) = model.get() {
+                    self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+                    gl_function!(StencilMask(0x00));
+                    for (mesh, shader) in model.0.iter() {
+                        self.render_mesh(shader, mesh);
+                    }
+                } else {
+                    warn!("Renderable entity {:?} has no mesh nor model", e);
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -284,6 +334,8 @@ impl System for RenderingSystem {
     }
 
     fn start(&self, world: &mut World) -> Result<(), String> {
+        gl_function!(Enable(gl::BLEND));
+        gl_function!(BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA));
         gl_function!(Enable(gl::DEPTH_TEST));
         gl_function!(DepthFunc(gl::LESS));
         // TODO: Only do stencil test if there are components that require it
@@ -316,6 +368,7 @@ impl System for RenderingSystem {
         self.setup_program_globals(world);
         self.render_non_bordered_objects(world);
         self.render_bordered_objects(world);
+        self.render_transparent_objects(world)?;
         self.light_program.use_program();
         self.draw_lights::<DirectionalLight>(world)?;
         self.draw_lights::<SpotLight>(world)?;

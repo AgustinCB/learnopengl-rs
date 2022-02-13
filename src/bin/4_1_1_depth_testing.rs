@@ -81,7 +81,7 @@ pub fn main() -> Result<(), String> {
             path: format!("{}/resource/marble.jpg", env!("CARGO_MANIFEST_DIR")),
         }
     ]);
-    let floor = build_plane(-0.5f32, 5f32, vec![
+    let floor = build_plane(-0.5f32, 5f32, 2f32, vec![
         TextureInfo {
             id: 0,
             texture_type: TextureType::Diffuse,

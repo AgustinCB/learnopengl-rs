@@ -20,6 +20,10 @@ out vec4 FragColor;
 
 void main()
 {
+    float alpha = texture(material.diffuse0, TexCoords).a;
+    if (alpha < 0.1) {
+        discard;
+    }
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
 
@@ -34,6 +38,5 @@ void main()
         result += calculateSpotLight(spot_lights[i], material, norm, FragPos, viewDir, TexCoords);
     }
 
-    FragColor = vec4(result, 1.0);
-    // FragColor = texture(material.diffuse0, TexCoords);
+    FragColor = vec4(result, alpha);
 }

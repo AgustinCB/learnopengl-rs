@@ -1,14 +1,14 @@
 use nalgebra::{Rotation3, UnitVector3, Vector3};
 use russimp::texture::TextureType;
 use learnopengl::cube::cube_mesh;
-use learnopengl::ecs::components::{Border, TextureInfo, Transform};
+use learnopengl::ecs::components::{TextureInfo, Transform};
 use learnopengl::game::Game;
 use learnopengl::light::DirectionalLight;
 use learnopengl::plane::build_plane;
 
 pub fn main() -> Result<(), String> {
     let mut game = Game::new(
-        "Depth testing",
+        "Discarding fragments",
         800,
         600,
         60,
@@ -33,7 +33,8 @@ pub fn main() -> Result<(), String> {
             path: format!("{}/resource/metal.png", env!("CARGO_MANIFEST_DIR")),
         }
     ]);
-    let e = game.spawn_mesh(&cube_mesh(vec![
+    game.spawn_mesh(&floor, Transform::identity())?;
+    game.spawn_mesh(&cube_mesh(vec![
         TextureInfo {
             id: 0,
             texture_type: TextureType::Diffuse,
@@ -44,8 +45,7 @@ pub fn main() -> Result<(), String> {
         scale: Vector3::new(1f32, 1f32, 1f32),
         rotation: Rotation3::identity(),
     })?;
-    game.add_to(e, Border { color:  Vector3::new(0.04f32, 0.28f32, 0.26f32 ), scale: 1.1f32})?;
-    let e = game.spawn_mesh(&cube_mesh(vec![
+    game.spawn_mesh(&cube_mesh(vec![
         TextureInfo {
             id: 0,
             texture_type: TextureType::Diffuse,
@@ -56,8 +56,26 @@ pub fn main() -> Result<(), String> {
         scale: Vector3::new(1f32, 1f32, 1f32),
         rotation: Rotation3::identity(),
     })?;
-    game.add_to(e, Border { color:  Vector3::new(0.04f32, 0.28f32, 0.26f32 ), scale: 1.1f32})?;
-    game.spawn_mesh(&floor, Transform::identity())?;
+    let grass = build_plane(-0.5f32, 0.5f32, 1f32, vec![
+        TextureInfo {
+            id: 0,
+            texture_type: TextureType::Diffuse,
+            path: format!("{}/resource/grass.png", env!("CARGO_MANIFEST_DIR")),
+        }
+    ]);
+    for position in vec![
+        Vector3::new(-1f32, 0f32, 0.48f32),
+        Vector3::new(1.5f32, 0f32, 1.5f32),
+        Vector3::new(0f32, 0f32, 0.48f32),
+        Vector3::new(-0.8f32, 0f32, 0.48f32),
+        Vector3::new(0.8f32, 0f32, 0.48f32),
+    ] {
+        game.spawn_mesh(&grass, Transform {
+            position,
+            rotation: Rotation3::from_euler_angles(std::f32::consts::PI/2f32, 0f32, 0f32),
+            scale: Vector3::new(1f32, 1f32, 1f32),
+        })?;
+    }
     game.play_with_fps_camera(vec![])?;
     Ok(())
 }

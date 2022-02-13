@@ -9,6 +9,8 @@ use crate::ecs::systems::rendering::RenderingSystem;
 use crate::texture::Texture;
 use crate::vertex_array::VertexArray;
 
+pub struct Transparent;
+
 #[derive(Clone, Debug)]
 pub struct Input {
     pub input_types: Vec<InputType>,
