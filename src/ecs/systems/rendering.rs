@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use hecs::{Entity, World};
+use image::EncodableLayout;
 use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use log::warn;
@@ -141,12 +142,22 @@ impl RenderingSystem {
             let image = Reader::open(&texture_info.path).map_err(|e| e.to_string())?
                 .decode().map_err(|e| e.to_string())?
                 .flipv();
-            texture.set_image_2d_with_type(
+            match texture.set_image_2d_with_type(
                 image.width() as u32,
                 image.height() as u32,
                 image.as_bytes(),
                 image.color()
-            )?;
+            ) {
+                Ok(()) => {},
+                Err(_) => {
+                    let image = image.to_rgba8();
+                    texture.set_image_2d(
+                        image.width() as u32,
+                        image.height() as u32,
+                        image.as_bytes(),
+                    );
+                }
+            }
             texture.generate_mipmap();
             self.textures_loaded.insert(texture_info.path.clone(), texture.clone());
             Ok(texture)
