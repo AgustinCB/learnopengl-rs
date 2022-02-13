@@ -113,7 +113,7 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.005f32,
+            camera_speed: 0.002f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;

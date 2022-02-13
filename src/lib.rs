@@ -9,7 +9,7 @@ macro_rules! gl_function {
                 let error_code = gl::GetError();
                 if error_code != gl::NO_ERROR {
                     log::error!("ERROR CODE {}", error_code);
-                    //std::process::exit(error_code as i32);
+                    std::process::exit(error_code as i32);
                 }
             }
             return_value

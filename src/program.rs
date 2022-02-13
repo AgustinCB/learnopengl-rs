@@ -1,8 +1,10 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ffi::CString;
 use super::gl_function;
 use crate::shader::Shader;
 use gl;
 use nalgebra::{Matrix4, Vector3};
-use std::ffi::CString;
 use std::ptr;
 use log::warn;
 
@@ -32,21 +34,27 @@ fn check_success(
     }
 }
 
-pub struct Program(gl::types::GLuint);
+pub struct Program {
+    resource: gl::types::GLuint,
+    uniforms: RefCell<HashMap<String, gl::types::GLint>>,
+}
 
 impl Program {
     pub fn new(shaders: Vec<Shader>) -> Result<Program, String> {
-        let program = gl_function!(CreateProgram());
+        let resource = gl_function!(CreateProgram());
         for shader in shaders.iter() {
-            gl_function!(AttachShader(program, shader.0));
+            gl_function!(AttachShader(resource, shader.0));
         }
-        gl_function!(LinkProgram(program));
-        check_success(program, gl::LINK_STATUS)?;
-        Ok(Program(program))
+        gl_function!(LinkProgram(resource));
+        check_success(resource, gl::LINK_STATUS)?;
+        Ok(Program {
+            resource,
+            uniforms: RefCell::new(HashMap::new()),
+        })
     }
 
     pub fn use_program(&self) {
-        gl_function!(UseProgram(self.0));
+        gl_function!(UseProgram(self.resource));
     }
 
     pub fn set_uniform_f1(&self, uniform: &str, x: f32) {
@@ -75,20 +83,31 @@ impl Program {
     }
 
     fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
-        let c_str = CString::new(uniform).unwrap();
-        let location = gl_function!(GetUniformLocation(
-            self.0,
-            std::mem::transmute(c_str.as_ptr())
-        ));
-        if location == -1 {
-            warn!("Uniform {} does not exist", uniform);
+        let mut cache = self.uniforms.borrow_mut();
+        match cache.get(uniform) {
+            Some(uniform) if *uniform == -1 => {
+                warn!("Uniform {} does not exist", uniform);
+                *uniform
+            },
+            Some(uniform) => *uniform,
+            None => {
+                let c_str = CString::new(uniform).unwrap();
+                let location = gl_function!(GetUniformLocation(
+                    self.resource,
+                    std::mem::transmute(c_str.as_ptr())
+                ));
+                if location == -1 {
+                    warn!("Uniform {} does not exist", uniform);
+                }
+                cache.insert(uniform.to_string(), location);
+                location
+            }
         }
-        location
     }
 }
 
 impl Drop for Program {
     fn drop(&mut self) {
-        gl_function!(DeleteProgram(self.0));
+        gl_function!(DeleteProgram(self.resource));
     }
 }

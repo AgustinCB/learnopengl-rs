@@ -220,7 +220,6 @@ impl RenderingSystem {
         gl_function!(StencilFunc(gl::ALWAYS, 1, 0xff));
         gl_function!(StencilMask(0xff));
         for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().with::<Border>().iter() {
-            log::error!("FOUND MESH {:?}", transform);
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             self.render_mesh(shader, mesh);
         }
@@ -235,7 +234,6 @@ impl RenderingSystem {
         gl_function!(Disable(gl::DEPTH_TEST));
         self.border_program.use_program();
         for (_e, (mesh, shader, transform, border)) in world.query::<(&Mesh, &Shader, &Transform, &Border)>().iter() {
-            log::error!("FOUND MESH {:?} {:?}", transform, border);
             self.render_mesh_border(&vec![(mesh, shader, border, transform)]);
         }
         for (_e, (model, transform, border)) in world.query::<(&Model, &Transform, &Border)>().iter() {
