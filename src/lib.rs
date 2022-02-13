@@ -2,14 +2,14 @@
 macro_rules! gl_function {
     ($a:ident($($b:tt)*)) => {
         unsafe {
-            log::trace!("gl{}({})", stringify!($a), stringify!($($b)*));
             let return_value = gl::$a($($b)*);
             #[cfg(debug_assertions)]
             {
+                log::trace!("gl{}({})", stringify!($a), stringify!($($b)*));
                 let error_code = gl::GetError();
                 if error_code != gl::NO_ERROR {
                     log::error!("ERROR CODE {}", error_code);
-                    std::process::exit(error_code as i32);
+                    //std::process::exit(error_code as i32);
                 }
             }
             return_value

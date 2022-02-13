@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use hecs::DynamicBundle;
+use hecs::{Component, DynamicBundle, Entity};
 use nalgebra::Vector3;
 use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
@@ -66,14 +66,12 @@ impl Game {
         self.camera.clone()
     }
 
-    pub fn spawn_model(&mut self, model: Vec<Mesh>, transform: Transform) -> Result<(), String> {
+    pub fn spawn_model(&mut self, model: Vec<Mesh>, transform: Transform) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
-        self.world.get_mut().spawn((
+        Ok(self.world.get_mut().spawn((
             Model::from_meshes(model, rendering)?,
             transform
-        ));
-
-        Ok(())
+        )))
     }
 
     pub fn spawn_model_from_file(&mut self, model: &str, transform: Transform) -> Result<(), String> {
@@ -83,11 +81,10 @@ impl Game {
         Ok(())
     }
 
-    pub fn spawn_mesh(&mut self, mesh: &Mesh, transform: Transform) -> Result<(), String> {
+    pub fn spawn_mesh(&mut self, mesh: &Mesh, transform: Transform) -> Result<Entity, String> {
         let shader = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?
             .shader_for_mesh(&mesh)?;
-        self.world.get_mut().spawn((mesh.clone(), shader, transform));
-        Ok(())
+        Ok(self.world.get_mut().spawn((mesh.clone(), shader, transform)))
     }
 
     pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<(), String> {
@@ -101,6 +98,10 @@ impl Game {
         self.world.get_mut().spawn(components);
     }
 
+    pub fn add_to(&mut self, entity: Entity, component: impl Component) -> Result<(), String> {
+        self.world.get_mut().insert_one(entity, component).map_err(|e| e.to_string())
+    }
+
     pub fn spawn_flash_light(&mut self, light: SpotLight, mesh: &Mesh, offset: Vector3<f32>) {
         self.world.get_mut().spawn((light, mesh.clone(), FlashLight {
             offset_from_camera: offset,
@@ -112,7 +113,7 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.05f32,
+            camera_speed: 0.005f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;
@@ -136,7 +137,6 @@ impl Game {
             self.window.swap_buffers();
 
             self.window.delay(1000/self.fps);
-            // break;
         }
         Ok(())
     }

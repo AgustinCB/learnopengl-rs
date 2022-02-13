@@ -68,6 +68,12 @@ impl Transform {
 pub struct Velocity(pub Vector3<f32>);
 
 #[derive(Clone, Debug)]
+pub struct Border {
+    pub color: Vector3<f32>,
+    pub scale: f32,
+}
+
+#[derive(Clone, Debug)]
 pub struct Mesh {
     pub vertices: Vec<Vector3<f32>>,
     pub normals: Option<Vec<Vector3<f32>>>,

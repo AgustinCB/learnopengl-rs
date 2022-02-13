@@ -24,6 +24,7 @@ impl VertexArray {
         normalized: bool,
     ) {
         let normalized = if normalized { gl::TRUE } else { gl::FALSE };
+        gl_function!(EnableVertexAttribArray(attribute));
         gl_function!(VertexAttribPointer(
             attribute,
             size as _,
@@ -32,7 +33,6 @@ impl VertexArray {
             size as i32 * size_of::<T>() as i32,
             ptr::null()
         ));
-        gl_function!(EnableVertexAttribArray(attribute));
     }
 
     pub fn set_vertex_attrib_with_padding<T>(

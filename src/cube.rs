@@ -1,4 +1,4 @@
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Point3, Translation3, Vector2, Vector3};
 use crate::ecs::components::{Mesh, TextureInfo};
 
 const VERTICES: [f32; 108] = [
@@ -154,6 +154,22 @@ fn unflatten_vector2(points: &[f32]) -> Vec<Vector2<f32>> {
 pub fn cube_mesh(textures: Vec<TextureInfo>) -> Mesh {
     Mesh {
         vertices: unflatten_vector3(&VERTICES),
+        normals: Some(unflatten_vector3(&NORMALS)),
+        indices: None,
+        textures: Some(textures),
+        texture_coordinates: Some(unflatten_vector2(&TEXTURE_COORDS)),
+        shininess: None,
+    }
+}
+
+pub fn cube_mesh_at_position(textures: Vec<TextureInfo>, position: Vector3<f32>) -> Mesh {
+    let translate = Translation3::from(position);
+    let vertices = unflatten_vector3(&VERTICES)
+        .into_iter()
+        .map(|v| (translate.clone() * Point3::from(v)).coords)
+        .collect();
+    Mesh {
+        vertices,
         normals: Some(unflatten_vector3(&NORMALS)),
         indices: None,
         textures: Some(textures),

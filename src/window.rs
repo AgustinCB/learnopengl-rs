@@ -20,6 +20,7 @@ impl Window {
         let video = sdl_context.video()?;
         let attrs = video.gl_attr();
 
+        attrs.set_stencil_size(8);
         attrs.set_context_major_version(4);
         attrs.set_context_minor_version(1);
         attrs.set_context_profile(GLProfile::Core);
