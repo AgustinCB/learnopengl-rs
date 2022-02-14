@@ -31,3 +31,5 @@ pub mod ecs;
 pub mod game;
 pub mod loader;
 pub mod plane;
+pub mod frame_buffer;
+pub mod render_buffer;

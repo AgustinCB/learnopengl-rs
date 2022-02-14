@@ -1,6 +1,7 @@
 use crate::gl_function;
 use gl;
 use std::mem::transmute;
+use std::ptr;
 use image::ColorType;
 
 #[derive(Clone, Copy, Debug)]
@@ -22,6 +23,10 @@ impl Texture {
 
     pub fn bind(&self, unit: gl::types::GLenum) {
         gl_function!(ActiveTexture(unit));
+        self.just_bind();
+    }
+
+    pub fn just_bind(&self) {
         gl_function!(BindTexture(self.1, self.0));
     }
 
@@ -64,6 +69,23 @@ impl Texture {
                 gl::RGB as _,
                 gl::UNSIGNED_BYTE,
                 transmute(&(data[0]) as *const u8)
+            )),
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn allocate_space(&self, width: u32, height: u32) {
+        match self.2 {
+            TextureType::Texture2D => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGB as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGB as _,
+                gl::UNSIGNED_BYTE,
+                ptr::null(),
             )),
             _ => unimplemented!(),
         }
