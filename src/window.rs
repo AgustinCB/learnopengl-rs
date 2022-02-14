@@ -1,6 +1,7 @@
 use gl;
 use sdl2::{EventPump, Sdl, TimerSubsystem, VideoSubsystem};
 use sdl2::event::EventPollIterator;
+use sdl2::mouse::MouseUtil;
 use sdl2::video::{GLContext, GLProfile, Window as SDL2Window};
 
 pub struct Window {
@@ -79,5 +80,9 @@ impl Window {
             self.events = Some(self.get_pumper())
         }
         self.events.as_mut().unwrap().poll_iter()
+    }
+
+    pub fn mouse(&self) -> MouseUtil {
+        self.sdl_context.mouse()
     }
 }

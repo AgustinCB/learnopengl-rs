@@ -4,7 +4,7 @@ use hecs::{Component, DynamicBundle, Entity};
 use nalgebra::Vector3;
 use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
-use crate::ecs::components::{FpsCamera, Input, Mesh, Model, QuitControl, Transform};
+use crate::ecs::components::{FpsCamera, Input, Mesh, Model, QuitControl, Skybox, Transform};
 use crate::ecs::systems::fps_camera::FpsCameraSystem;
 use crate::ecs::systems::input::{InputSystem, InputType};
 use crate::ecs::systems::quit_system::QuitSystem;
@@ -17,7 +17,7 @@ use crate::window::Window;
 
 pub struct Game {
     camera: Rc<RefCell<Camera>>,
-    fps: usize,
+    _fps: usize,
     game_ended: Rc<RefCell<bool>>,
     rendering_system: Option<RenderingSystem>,
     window: Window,
@@ -54,7 +54,7 @@ impl Game {
         )?;
         Ok(Game {
             camera,
-            fps,
+            _fps: fps,
             window,
             world,
             game_ended: Rc::new(RefCell::new(false)),
@@ -79,6 +79,12 @@ impl Game {
         let model = load_model(model, rendering)?;
         self.world.get_mut().spawn((model, transform));
         Ok(())
+    }
+
+    pub fn spawn_skybox(&mut self, skybox: &Skybox) -> Result<Entity, String> {
+        let shader = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?
+            .shader_for_skybox(skybox)?;
+        Ok(self.world.get_mut().spawn((shader, skybox.clone())))
     }
 
     pub fn spawn_mesh(&mut self, mesh: &Mesh, transform: Transform) -> Result<Entity, String> {
@@ -113,14 +119,14 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.002f32,
+            camera_speed: 0.005f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;
         self.world.add_system(Box::new(rendering));
         self.world.add_system(Box::new(InputSystem { event_pumper: RefCell::new(self.window.get_pumper()) }));
         self.world.add_system(Box::new(QuitSystem { game_ended: self.game_ended.clone() }));
-        self.world.add_system(Box::new(FpsCameraSystem { camera: self.camera.clone() }));
+        self.world.add_system(Box::new(FpsCameraSystem { camera: self.camera.clone(), mouse: self.window.mouse() }));
         for system in systems {
             self.world.add_system(system);
         }
@@ -135,8 +141,6 @@ impl Game {
             self.world.late_update(delta_time);
 
             self.window.swap_buffers();
-
-            self.window.delay(1000/self.fps);
         }
         Ok(())
     }

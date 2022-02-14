@@ -9,6 +9,7 @@ pub enum TextureType {
     Texture1D = gl::TEXTURE_1D as isize,
     Texture2D = gl::TEXTURE_2D as isize,
     Texture3D = gl::TEXTURE_3D as isize,
+    CubeMap = gl::TEXTURE_CUBE_MAP as isize,
 }
 
 #[derive(Debug)]
@@ -32,6 +33,20 @@ impl Texture {
 
     pub fn generate_mipmap(&self) {
         gl_function!(GenerateMipmap(self.1));
+    }
+
+    pub fn set_cube_map_face(&self, face: u32, width: usize, height: usize, data: &[u8]) {
+        gl_function!(TexImage2D(
+            gl::TEXTURE_CUBE_MAP_POSITIVE_X + face,
+            0,
+            gl::RGBA as _,
+            width as _,
+            height as _,
+            0,
+            gl::RGBA as _,
+            gl::UNSIGNED_BYTE,
+            transmute(&(data[0]) as *const u8)
+        ));
     }
 
     pub fn set_image_2d_with_type(&self, width: u32, height: u32, data: &[u8], color_type: ColorType) -> Result<(), String> {
@@ -62,11 +77,11 @@ impl Texture {
             TextureType::Texture2D => gl_function!(TexImage2D(
                 self.1,
                 0,
-                gl::RGB as _,
+                gl::RGBA as _,
                 width as _,
                 height as _,
                 0,
-                gl::RGB as _,
+                gl::RGBA as _,
                 gl::UNSIGNED_BYTE,
                 transmute(&(data[0]) as *const u8)
             )),

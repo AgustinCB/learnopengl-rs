@@ -3,12 +3,14 @@ use std::rc::Rc;
 use hecs::World;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseUtil;
 use crate::camera::Camera;
 use crate::ecs::components::{FpsCamera, Input};
 use crate::ecs::systems::system::System;
 
 pub struct FpsCameraSystem {
     pub camera: Rc<RefCell<Camera>>,
+    pub mouse: MouseUtil,
 }
 
 impl System for FpsCameraSystem {
@@ -17,6 +19,7 @@ impl System for FpsCameraSystem {
     }
 
     fn start(&self, _world: &mut World) -> Result<(), String> {
+        self.mouse.show_cursor(false);
         Ok(())
     }
 
@@ -50,7 +53,7 @@ impl System for FpsCameraSystem {
                         (*self.camera).borrow_mut().move_right(-camera_speed);
                     }
                     Event::MouseMotion { xrel, yrel, .. } => {
-                        let sensitivity = 0.2f32;
+                        let sensitivity = 0.1f32;
                         let xoffset = *xrel as f32 * sensitivity;
                         let yoffset = *yrel as f32 * sensitivity;
                         (*self.camera).borrow_mut().move_front(xoffset, yoffset);

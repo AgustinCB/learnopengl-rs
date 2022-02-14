@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 use hecs::{Entity, World};
@@ -8,11 +9,11 @@ use image::EncodableLayout;
 use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use log::warn;
-use nalgebra::{Scale3, Vector3};
+use nalgebra::{Matrix3, Scale3, Vector3};
 use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
-use crate::ecs::components::{Border, Mesh, Model, Shader, TextureInfo, Transform, Transparent};
+use crate::ecs::components::{Border, Mesh, Model, Shader, SkipRendering, Skybox, SKYBOX_VERTICES, TextureInfo, Transform, Transparent};
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
 use crate::program::Program;
@@ -30,6 +31,7 @@ pub struct RenderingSystem {
     light_program: Program,
     main_camera: Rc<RefCell<Camera>>,
     meshes_program: Program,
+    skybox_program: Program,
     textures_loaded: HashMap<String, Arc<Texture>>,
 }
 
@@ -58,6 +60,10 @@ impl RenderingSystem {
                 shader_loader.load(ShaderType::Vertex, meshes_vertex_shader)?,
                 shader_loader.load(ShaderType::Fragment, meshes_fragment_shader)?,
             ])?,
+            skybox_program: Program::new(vec![
+                shader_loader.load(ShaderType::Vertex, "16.1-skybox_vertex.glsl")?,
+                shader_loader.load(ShaderType::Fragment, "16.1-skybox_fragment.glsl")?,
+            ])?,
             textures_loaded: HashMap::new(),
         })
     }
@@ -77,6 +83,28 @@ impl RenderingSystem {
             elements_buffer,
             textures,
         })
+    }
+
+    pub fn shader_for_skybox(&mut self, skybox: &Skybox) -> Result<Shader, String> {
+        let vertex_array = Arc::new(VertexArray::new());
+        let vertex_buffer = Arc::new(Buffer::new(gl::ARRAY_BUFFER));
+        Ok(Shader {
+            vertex_array,
+            vertex_buffer,
+            elements_buffer: None,
+            textures: vec![self.setup_cubemap_texture(&skybox.texture_info)?],
+        })
+    }
+
+    fn setup_skybox(&self, shader: &Shader) -> Result<(), String> {
+        shader.vertex_array.bind();
+        shader.vertex_buffer.bind();
+        shader.vertex_buffer.set_data(&SKYBOX_VERTICES, gl::STATIC_DRAW);
+        VertexArray::set_vertex_attrib::<f32>(gl::FLOAT, 0, 3, false);
+        VertexArray::unbind();
+        self.skybox_program.use_program();
+        self.skybox_program.set_uniform_i1("skybox", 0);
+        Ok(())
     }
 
     fn setup_gl_objects(&self, shader: &Shader, mesh: &Mesh) -> Result<(), String> {
@@ -129,6 +157,29 @@ impl RenderingSystem {
         }
     }
 
+    fn setup_cubemap_texture(&mut self, texture_info: &TextureInfo) -> Result<Arc<Texture>, String> {
+        if let Some(texture) = self.textures_loaded.get(&texture_info.path) {
+            Ok(texture.clone())
+        } else {
+            let texture = Arc::new(Texture::new(TextureType::CubeMap));
+            texture.just_bind();
+            let root = Path::new(&texture_info.path);
+            for (i, path) in vec!["right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"].into_iter().enumerate() {
+                let path = root.join(path);
+                let image = Reader::open(path).map_err(|e| e.to_string())?
+                    .decode().map_err(|e| e.to_string())?
+                    .to_rgba8();
+                texture.set_cube_map_face(i as u32, image.width() as _, image.height() as _, image.as_bytes());
+            }
+            texture.set_parameter(gl::TEXTURE_MIN_FILTER, gl::LINEAR);
+            texture.set_parameter(gl::TEXTURE_MAG_FILTER, gl::LINEAR);
+            texture.set_parameter(gl::TEXTURE_WRAP_S, gl::REPEAT);
+            texture.set_parameter(gl::TEXTURE_WRAP_T, gl::REPEAT);
+            texture.set_parameter(gl::TEXTURE_WRAP_R, gl::REPEAT);
+            Ok(texture)
+        }
+    }
+
     fn texture_info_to_texture(&mut self, texture_info: &TextureInfo) -> Result<Arc<Texture>, String> {
         if let Some(texture) = self.textures_loaded.get(&texture_info.path) {
             Ok(texture.clone())
@@ -177,7 +228,7 @@ impl RenderingSystem {
     fn draw_lights<T: Light + Send + Sync + 'static>(&self, world: &mut World) -> Result<(), String> {
         let look_at_matrix = (*self.main_camera).borrow().look_at_matrix();
         let projection = (*self.main_camera).borrow().projection();
-        for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>() {
+        for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>().without::<Skybox>() {
             light.set_light_drawing_program(
                 &self.light_program, "light.specular", "model", ("view", &look_at_matrix), ("projection", &projection)
             );
@@ -199,10 +250,12 @@ impl RenderingSystem {
                     let index = diffuse_index;
                     diffuse_index += 1;
                     ("diffuse", index)
-                } else {
+                } else if info.texture_type == MaterialTextureType::Specular {
                     let index = specular_index;
                     specular_index += 1;
                     ("specular", index)
+                } else {
+                    panic!("Can't happen");
                 };
                 self.meshes_program.set_uniform_i1(&format!("material.{}{}", texture_type, texture_index), info.id as i32);
             }
@@ -230,13 +283,14 @@ impl RenderingSystem {
     }
 
     fn render_bordered_objects(&self, world: &mut World) {
+        self.meshes_program.use_program();
         gl_function!(StencilFunc(gl::ALWAYS, 1, 0xff));
         gl_function!(StencilMask(0xff));
-        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().with::<Border>().iter() {
+        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             self.render_mesh(shader, mesh);
         }
-        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().with::<Border>().iter() {
+        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             for (mesh, shader) in model.0.iter() {
                 self.render_mesh(shader, mesh);
@@ -246,7 +300,7 @@ impl RenderingSystem {
         gl_function!(StencilMask(0x00));
         gl_function!(Disable(gl::DEPTH_TEST));
         self.border_program.use_program();
-        for (_e, (mesh, shader, transform, border)) in world.query::<(&Mesh, &Shader, &Transform, &Border)>().iter() {
+        for (_e, (mesh, shader, transform, border)) in world.query::<(&Mesh, &Shader, &Transform, &Border)>().without::<SkipRendering>().iter() {
             self.render_mesh_border(&vec![(mesh, shader, border, transform)]);
         }
         for (_e, (model, transform, border)) in world.query::<(&Model, &Transform, &Border)>().iter() {
@@ -263,6 +317,8 @@ impl RenderingSystem {
     fn setup_program_globals(&self, world: &mut World) {
         let projection = (*self.main_camera).borrow().projection();
         let view = (*self.main_camera).borrow().look_at_matrix();
+        self.skybox_program.use_program();
+        self.skybox_program.set_uniform_matrix4("projection", &projection);
         self.border_program.use_program();
         self.border_program.set_uniform_matrix4("projection", &projection);
         self.border_program.set_uniform_matrix4("view", &view);
@@ -275,13 +331,32 @@ impl RenderingSystem {
         self.meshes_program.set_uniform_matrix4("view", &view);
     }
 
+    fn render_skybox(&self, world: &mut World) -> Result<(), String> {
+        let skybox = world.query_mut::<&Shader>().with::<Skybox>().into_iter().next();
+        if let Some((_e, shader)) = skybox {
+            let view = (*self.main_camera).borrow().look_at_matrix();
+            let view = Matrix3::from(view.fixed_slice(0, 0)).to_homogeneous();
+            gl_function!(DepthFunc(gl::EQUAL));
+            self.skybox_program.use_program();
+            self.skybox_program.set_uniform_matrix4("view", &view);
+            shader.vertex_array.bind();
+            let texture = shader.textures.get(0).ok_or("Skybox with no texture".to_string())?;
+            texture.bind(gl::TEXTURE0);
+            gl_function!(DrawArrays(gl::TRIANGLES, 0, 36));
+            VertexArray::unbind();
+            gl_function!(DepthFunc(gl::LESS));
+        }
+        Ok(())
+    }
+
     fn render_non_bordered_objects(&self, world: &mut World) {
-        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().iter() {
+        self.meshes_program.use_program();
+        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             gl_function!(StencilMask(0x00));
             self.render_mesh(shader, mesh);
         }
-        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().iter() {
+        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
             self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
             gl_function!(StencilMask(0x00));
             for (mesh, shader) in model.0.iter() {
@@ -293,7 +368,7 @@ impl RenderingSystem {
     fn render_transparent_objects(&self, world: &mut World) -> Result<(), String> {
         self.meshes_program.use_program();
         let mut entities = vec![];
-        for (e, transform) in world.query::<&Transform>()
+        for (e, transform) in world.query::<&Transform>().without::<SkipRendering>()
             .with::<Transparent>()
             .with::<Shader>()
             .iter() {
@@ -353,6 +428,9 @@ impl System for RenderingSystem {
         gl_function!(Enable(gl::STENCIL_TEST));
         gl_function!(StencilFunc(gl::ALWAYS, 0, 0xff));
         gl_function!(StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE));
+        for (_e, shader) in world.query_mut::<&Shader>().with::<Skybox>() {
+            self.setup_skybox(shader)?;
+        }
         for (_e, (shader, mesh)) in world.query_mut::<(&Shader, &Mesh)>() {
             self.setup_gl_objects(shader, mesh)?;
         }
@@ -384,6 +462,7 @@ impl System for RenderingSystem {
         self.draw_lights::<DirectionalLight>(world)?;
         self.draw_lights::<SpotLight>(world)?;
         self.draw_lights::<PointLight>(world)?;
+        self.render_skybox(world)?;
         Ok(())
     }
 }

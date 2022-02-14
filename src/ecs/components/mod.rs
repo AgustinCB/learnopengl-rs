@@ -9,6 +9,7 @@ use crate::ecs::systems::rendering::RenderingSystem;
 use crate::texture::Texture;
 use crate::vertex_array::VertexArray;
 
+pub struct SkipRendering;
 pub struct Transparent;
 
 #[derive(Clone, Debug)]
@@ -73,6 +74,50 @@ pub struct Velocity(pub Vector3<f32>);
 pub struct Border {
     pub color: Vector3<f32>,
     pub scale: f32,
+}
+
+pub(crate) const SKYBOX_VERTICES: [f32; 108] = [
+    -1.0f32,  1.0f32, -1.0f32,
+    -1.0f32, -1.0f32, -1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    1.0f32,  1.0f32, -1.0f32,
+    -1.0f32,  1.0f32, -1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    -1.0f32, -1.0f32, -1.0f32,
+    -1.0f32,  1.0f32, -1.0f32,
+    -1.0f32,  1.0f32, -1.0f32,
+    -1.0f32,  1.0f32,  1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    1.0f32, -1.0f32,  1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    1.0f32,  1.0f32, -1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    -1.0f32,  1.0f32,  1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    1.0f32, -1.0f32,  1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    -1.0f32,  1.0f32, -1.0f32,
+    1.0f32,  1.0f32, -1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    1.0f32,  1.0f32,  1.0f32,
+    -1.0f32,  1.0f32,  1.0f32,
+    -1.0f32,  1.0f32, -1.0f32,
+    -1.0f32, -1.0f32, -1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    1.0f32, -1.0f32, -1.0f32,
+    -1.0f32, -1.0f32,  1.0f32,
+    1.0f32, -1.0f32,  1.0f32,
+];
+
+#[derive(Clone, Debug)]
+pub struct Skybox {
+    pub texture_info: TextureInfo,
 }
 
 #[derive(Clone, Debug)]
@@ -176,8 +221,8 @@ impl Model {
 }
 #[derive(Debug, Clone)]
 pub struct Shader {
-    pub(crate) vertex_array: Arc<VertexArray>,
+    pub vertex_array: Arc<VertexArray>,
     pub(crate) vertex_buffer: Arc<Buffer>,
     pub(crate) elements_buffer: Option<Arc<Buffer>>,
-    pub(crate) textures: Vec<Arc<Texture>>
+    pub textures: Vec<Arc<Texture>>
 }
