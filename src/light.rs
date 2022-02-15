@@ -4,6 +4,7 @@ use crate::program::Program;
 pub trait Light {
     fn set_light_in_program(&self, program: &Program, name: &str);
     fn set_light_drawing_program(&self, program: &Program, color_name: &str, model_name: &str, view: (&str, &Matrix4<f32>), projection: (&str, &Matrix4<f32>));
+    fn set_light_drawing_program_no_globals(&self, program: &Program, color_name: &str, model_name: &str);
 }
 
 pub struct DirectionalLight {
@@ -39,6 +40,9 @@ impl Light for DirectionalLight {
     }
 
     fn set_light_drawing_program(&self, _program: &Program, _color_name: &str, _model_name: &str, _view: (&str, &Matrix4<f32>), _projection: (&str, &Matrix4<f32>)) {
+    }
+
+    fn set_light_drawing_program_no_globals(&self, _program: &Program, _color_name: &str, _model_name: &str) {
     }
 }
 
@@ -94,6 +98,12 @@ impl Light for PointLight {
         program.set_uniform_matrix4(model_name, &self.model);
         program.set_uniform_matrix4(projection.0, &projection.1);
         program.set_uniform_matrix4(view.0, &view.1);
+        program.set_uniform_v3(color_name, self.specular);
+    }
+
+    fn set_light_drawing_program_no_globals(&self, program: &Program, color_name: &str, model_name: &str) {
+        program.use_program();
+        program.set_uniform_matrix4(model_name, &self.model);
         program.set_uniform_v3(color_name, self.specular);
     }
 }
@@ -175,6 +185,12 @@ impl Light for SpotLight {
         program.set_uniform_matrix4(model_name, &self.model);
         program.set_uniform_matrix4(projection.0, &projection.1);
         program.set_uniform_matrix4(view.0, &view.1);
+        program.set_uniform_v3(color_name, self.specular);
+    }
+
+    fn set_light_drawing_program_no_globals(&self, program: &Program, color_name: &str, model_name: &str) {
+        program.use_program();
+        program.set_uniform_matrix4(model_name, &self.model);
         program.set_uniform_v3(color_name, self.specular);
     }
 }

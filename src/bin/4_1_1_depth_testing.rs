@@ -61,9 +61,9 @@ pub fn main() -> Result<(), String> {
         600,
         60,
         Vector3::new(0f32, 0f32, 0f32),
-        "09.1-lightingmapsvertex.glsl",
+        "17.1-uniform_buffer_objects_vertex.glsl",
         "12.1-modelloading.glsl",
-        "09.1-lightingmapsvertex.glsl",
+        "17.1-uniform_buffer_objects_vertex.glsl",
         "09.1-lightfragment.glsl",
     )?;
     let directional_light = DirectionalLight::new(

@@ -9,7 +9,7 @@ use image::EncodableLayout;
 use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use log::warn;
-use nalgebra::{Matrix3, Scale3, Vector3};
+use nalgebra::{Matrix4, Scale3, Vector3};
 use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
@@ -21,8 +21,10 @@ use crate::shader_loader::{ShaderLoader, ShaderType};
 use crate::texture::{Texture, TextureType};
 use crate::vertex_array::VertexArray;
 
-static BORDER_VERTEX_SHADER: &'static str = "14.1-border_color_vertex.glsl";
+static BORDER_VERTEX_SHADER: &'static str = "17.1-uniform_buffer_objects_vertex_border.glsl";
 static BORDER_FRAGMENT_SHADER: &'static str = "14.1-border_color.glsl";
+static SKYBOX_VERTEX_SHADER: &'static str = "17.1-uniform_buffer_object_vertex_skybox.glsl";
+static SKYBOX_FRAGMENT_SHADER: &'static str = "16.1-skybox_fragment.glsl";
 static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
 pub struct RenderingSystem {
@@ -33,6 +35,7 @@ pub struct RenderingSystem {
     meshes_program: Program,
     skybox_program: Program,
     textures_loaded: HashMap<String, Arc<Texture>>,
+    uniform_buffer: Buffer,
 }
 
 impl RenderingSystem {
@@ -45,25 +48,40 @@ impl RenderingSystem {
         meshes_fragment_shader: &'static str,
     ) -> Result<RenderingSystem, String> {
         let shader_loader = ShaderLoader::new(&SHADERS_DIR);
+        let border_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, BORDER_VERTEX_SHADER)?,
+            shader_loader.load(ShaderType::Fragment, BORDER_FRAGMENT_SHADER)?,
+        ])?;
+        let light_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, light_vertex_shader)?,
+            shader_loader.load(ShaderType::Fragment, light_fragment_shader)?,
+        ])?;
+        let meshes_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, meshes_vertex_shader)?,
+            shader_loader.load(ShaderType::Fragment, meshes_fragment_shader)?,
+        ])?;
+        let skybox_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, SKYBOX_VERTEX_SHADER)?,
+            shader_loader.load(ShaderType::Fragment, SKYBOX_FRAGMENT_SHADER)?,
+        ])?;
+        border_program.bind_uniform_block("Matrices", 0);
+        light_program.bind_uniform_block("Matrices", 0);
+        meshes_program.bind_uniform_block("Matrices", 0);
+        skybox_program.bind_uniform_block("Matrices", 0);
+        let uniform_buffer = Buffer::new(gl::UNIFORM_BUFFER);
+        let buffer_size = Matrix4::<f32>::identity().len() * 2;
+        uniform_buffer.bind();
+        uniform_buffer.allocate_data::<f32>(buffer_size);
+        uniform_buffer.unbind();
+        uniform_buffer.link_to_binding_point(0, 0, buffer_size);
         Ok(RenderingSystem {
+            border_program,
             clear_color,
-            border_program: Program::new(vec![
-                shader_loader.load(ShaderType::Vertex, BORDER_VERTEX_SHADER)?,
-                shader_loader.load(ShaderType::Fragment, BORDER_FRAGMENT_SHADER)?,
-            ])?,
+            light_program,
+            meshes_program,
+            skybox_program,
+            uniform_buffer,
             main_camera: camera,
-            light_program: Program::new(vec![
-                shader_loader.load(ShaderType::Vertex, light_vertex_shader)?,
-                shader_loader.load(ShaderType::Fragment, light_fragment_shader)?,
-            ])?,
-            meshes_program: Program::new(vec![
-                shader_loader.load(ShaderType::Vertex, meshes_vertex_shader)?,
-                shader_loader.load(ShaderType::Fragment, meshes_fragment_shader)?,
-            ])?,
-            skybox_program: Program::new(vec![
-                shader_loader.load(ShaderType::Vertex, "16.1-skybox_vertex.glsl")?,
-                shader_loader.load(ShaderType::Fragment, "16.1-skybox_fragment.glsl")?,
-            ])?,
             textures_loaded: HashMap::new(),
         })
     }
@@ -226,11 +244,9 @@ impl RenderingSystem {
     }
 
     fn draw_lights<T: Light + Send + Sync + 'static>(&self, world: &mut World) -> Result<(), String> {
-        let look_at_matrix = (*self.main_camera).borrow().look_at_matrix();
-        let projection = (*self.main_camera).borrow().projection();
         for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>().without::<Skybox>() {
-            light.set_light_drawing_program(
-                &self.light_program, "light.specular", "model", ("view", &look_at_matrix), ("projection", &projection)
+            light.set_light_drawing_program_no_globals(
+                &self.light_program, "light.specular", "model",
             );
             let n_vertices = mesh.vertices.len();
             shader.vertex_array.bind();
@@ -317,28 +333,23 @@ impl RenderingSystem {
     fn setup_program_globals(&self, world: &mut World) {
         let projection = (*self.main_camera).borrow().projection();
         let view = (*self.main_camera).borrow().look_at_matrix();
-        self.skybox_program.use_program();
-        self.skybox_program.set_uniform_matrix4("projection", &projection);
+        self.uniform_buffer.bind();
+        self.uniform_buffer.set_sub_data(0, view.len(), view.as_slice());
+        self.uniform_buffer.set_sub_data(view.len(), projection.len(), projection.as_slice());
+        self.uniform_buffer.unbind();
         self.border_program.use_program();
-        self.border_program.set_uniform_matrix4("projection", &projection);
-        self.border_program.set_uniform_matrix4("view", &view);
         self.meshes_program.use_program();
         self.set_lights::<DirectionalLight>(world, "directional_lights");
         self.set_lights::<SpotLight>(world, "spot_lights");
         self.set_lights::<PointLight>(world, "point_lights");
         self.meshes_program.set_uniform_v3("viewPos", (*self.main_camera).borrow().position());
-        self.meshes_program.set_uniform_matrix4("projection", &projection);
-        self.meshes_program.set_uniform_matrix4("view", &view);
     }
 
     fn render_skybox(&self, world: &mut World) -> Result<(), String> {
         let skybox = world.query_mut::<&Shader>().with::<Skybox>().into_iter().next();
         if let Some((_e, shader)) = skybox {
-            let view = (*self.main_camera).borrow().look_at_matrix();
-            let view = Matrix3::from(view.fixed_slice(0, 0)).to_homogeneous();
             gl_function!(DepthFunc(gl::EQUAL));
             self.skybox_program.use_program();
-            self.skybox_program.set_uniform_matrix4("view", &view);
             shader.vertex_array.bind();
             let texture = shader.textures.get(0).ok_or("Skybox with no texture".to_string())?;
             texture.bind(gl::TEXTURE0);

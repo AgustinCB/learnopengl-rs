@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::mem::transmute;
 use super::gl_function;
 use crate::shader::Shader;
 use gl;
@@ -82,6 +83,12 @@ impl Program {
         gl_function!(UniformMatrix4fv(location, 1, gl::FALSE, matrix.as_ptr()));
     }
 
+    pub fn bind_uniform_block(&self, uniform: &str, binding_point: usize) {
+        let c_string = CString::new(uniform).unwrap();
+        let block_index = gl_function!(GetUniformBlockIndex(self.resource, transmute(c_string.as_ptr())));
+        gl_function!(UniformBlockBinding(self.resource, block_index, binding_point as u32));
+    }
+
     fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
         let mut cache = self.uniforms.borrow_mut();
         match cache.get(uniform) {
@@ -94,7 +101,7 @@ impl Program {
                 let c_str = CString::new(uniform).unwrap();
                 let location = gl_function!(GetUniformLocation(
                     self.resource,
-                    std::mem::transmute(c_str.as_ptr())
+                    transmute(c_str.as_ptr())
                 ));
                 if location == -1 {
                     warn!("Uniform {} does not exist", uniform);
