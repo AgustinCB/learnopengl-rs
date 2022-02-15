@@ -5,6 +5,7 @@ use regex::Regex;
 
 pub enum ShaderType {
     Fragment = gl::FRAGMENT_SHADER as isize,
+    Geometry = gl::GEOMETRY_SHADER as isize,
     Vertex = gl::VERTEX_SHADER as isize,
 }
 

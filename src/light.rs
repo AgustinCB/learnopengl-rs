@@ -7,6 +7,7 @@ pub trait Light {
     fn set_light_drawing_program_no_globals(&self, program: &Program, color_name: &str, model_name: &str);
 }
 
+#[derive(Clone)]
 pub struct DirectionalLight {
     direction: UnitVector3<f32>,
     ambient: Vector3<f32>,

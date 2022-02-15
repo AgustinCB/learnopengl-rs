@@ -74,11 +74,10 @@ impl Game {
         )))
     }
 
-    pub fn spawn_model_from_file(&mut self, model: &str, transform: Transform) -> Result<(), String> {
+    pub fn spawn_model_from_file(&mut self, model: &str, transform: Transform) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
         let model = load_model(model, rendering)?;
-        self.world.get_mut().spawn((model, transform));
-        Ok(())
+        Ok(self.world.get_mut().spawn((model, transform)))
     }
 
     pub fn spawn_skybox(&mut self, skybox: &Skybox) -> Result<Entity, String> {

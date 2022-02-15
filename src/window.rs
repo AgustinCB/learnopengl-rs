@@ -6,10 +6,10 @@ use sdl2::video::{GLContext, GLProfile, Window as SDL2Window};
 
 pub struct Window {
     events: Option<EventPump>,
-    gl_context: GLContext,
+    _gl_context: GLContext,
     sdl_context: Sdl,
     timer: TimerSubsystem,
-    video: VideoSubsystem,
+    _video: VideoSubsystem,
     window: SDL2Window,
     now: usize,
     last: usize,
@@ -43,8 +43,8 @@ impl Window {
             now: 0,
             timer: sdl_timer,
             sdl_context,
-            gl_context,
-            video,
+            _gl_context: gl_context,
+            _video: video,
             window,
         })
     }
