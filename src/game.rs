@@ -4,7 +4,7 @@ use hecs::{Component, DynamicBundle, Entity};
 use nalgebra::Vector3;
 use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
-use crate::ecs::components::{FpsCamera, Input, Mesh, Model, QuitControl, Skybox, Transform};
+use crate::ecs::components::{FpsCamera, Input, InstancedMesh, InstancedModel, Mesh, Model, QuitControl, Skybox, Transform};
 use crate::ecs::systems::fps_camera::FpsCameraSystem;
 use crate::ecs::systems::input::{InputSystem, InputType};
 use crate::ecs::systems::quit_system::QuitSystem;
@@ -12,7 +12,7 @@ use crate::ecs::systems::rendering::RenderingSystem;
 use crate::ecs::systems::system::System;
 use crate::ecs::world::World;
 use crate::light::{FlashLight, Light, SpotLight};
-use crate::loader::load_model;
+use crate::loader::{load_instanciated_model, load_model};
 use crate::window::Window;
 
 pub struct Game {
@@ -80,6 +80,12 @@ impl Game {
         Ok(self.world.get_mut().spawn((model, transform)))
     }
 
+    pub fn spawn_instanced_model_from_file(&mut self, model: &str, transform: Transform, offset: Vec<Vector3<f32>>) -> Result<Entity, String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        let model = load_instanciated_model(model, rendering, offset)?;
+        Ok(self.world.get_mut().spawn((model, transform)))
+    }
+
     pub fn spawn_skybox(&mut self, skybox: &Skybox) -> Result<Entity, String> {
         let shader = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?
             .shader_for_skybox(skybox)?;
@@ -90,6 +96,21 @@ impl Game {
         let shader = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?
             .shader_for_mesh(&mesh)?;
         Ok(self.world.get_mut().spawn((mesh.clone(), shader, transform)))
+    }
+
+    pub fn spawn_instanced_model(&mut self, model: Vec<Mesh>, transform: Transform, offsets: Vec<Vector3<f32>>) -> Result<Entity, String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        Ok(self.world.get_mut().spawn((InstancedModel::new(model, rendering, offsets), transform)))
+    }
+
+    pub fn spawn_instanced_mesh(&mut self, mesh: &Mesh, transform: Transform, offsets: Vec<Vector3<f32>>) -> Result<Entity, String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        let shader = rendering.shader_for_mesh(mesh)?;
+        let shader = rendering.instanced_rendering.shader_for_mesh(&shader)?;
+        Ok(self.world.get_mut().spawn((InstancedMesh {
+            offsets,
+            mesh: mesh.clone()
+        }, shader, transform)))
     }
 
     pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<(), String> {

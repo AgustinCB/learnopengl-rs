@@ -44,6 +44,7 @@ impl VertexArray {
         normalized: bool,
     ) {
         let normalized = if normalized { gl::TRUE } else { gl::FALSE };
+        gl_function!(EnableVertexAttribArray(attribute));
         gl_function!(VertexAttribPointer(
             attribute,
             padding as _,
@@ -52,7 +53,6 @@ impl VertexArray {
             size as i32 * size_of::<T>() as i32,
             transmute(start as usize * size_of::<T>())
         ));
-        gl_function!(EnableVertexAttribArray(attribute));
     }
 
     pub fn unbind() {

@@ -6,8 +6,17 @@ use sdl2::keyboard::Keycode;
 use crate::buffer::Buffer;
 use crate::ecs::systems::input::InputType;
 use crate::ecs::systems::rendering::RenderingSystem;
+use crate::program::Program;
 use crate::texture::Texture;
 use crate::vertex_array::VertexArray;
+
+pub fn get_flattened_vectors(vectors: &[Vector3<f32>]) -> Vec<f32> {
+    vectors.iter()
+        .map(|v| v.data.as_slice())
+        .flatten()
+        .cloned()
+        .collect::<Vec<f32>>()
+}
 
 pub struct SkipRendering;
 pub struct Transparent;
@@ -121,6 +130,31 @@ pub struct Skybox {
 }
 
 #[derive(Clone, Debug)]
+pub struct InstancedMesh {
+    pub offsets: Vec<Vector3<f32>>,
+    pub mesh: Mesh,
+}
+
+#[derive(Clone, Debug)]
+pub struct InstancedModel {
+    pub offsets: Vec<Vector3<f32>>,
+    pub model: Vec<(Mesh, InstancedShader)>,
+}
+
+impl InstancedModel {
+    pub fn new(meshes: Vec<Mesh>, rendering: &mut RenderingSystem, offsets: Vec<Vector3<f32>>) -> Result<InstancedModel, String> {
+        Ok(InstancedModel {
+            offsets,
+            model: meshes.into_iter().map(|m| {
+                let shader = rendering.shader_for_mesh(&m)?;
+                let shader = rendering.instanced_rendering.shader_for_mesh(&shader)?;
+                Ok((m, shader))
+            }).collect::<Result<Vec<_>, String>>()?,
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Mesh {
     pub vertices: Vec<Vector3<f32>>,
     pub normals: Option<Vec<Vector3<f32>>>,
@@ -131,6 +165,32 @@ pub struct Mesh {
 }
 
 impl Mesh {
+    pub fn set_program(&self, program: &Program, textures: &[Arc<Texture>]) {
+        let mut diffuse_index = 0;
+        let mut specular_index = 0;
+        if let Some(infos) = &self.textures {
+            for (texture, info) in textures.iter().zip(infos.iter()) {
+                texture.bind(gl::TEXTURE0 + info.id as u32);
+                let (texture_type, texture_index) = if info.texture_type == TextureType::Diffuse {
+                    let index = diffuse_index;
+                    diffuse_index += 1;
+                    ("diffuse", index)
+                } else if info.texture_type == TextureType::Specular {
+                    let index = specular_index;
+                    specular_index += 1;
+                    ("specular", index)
+                } else {
+                    panic!("Can't happen");
+                };
+                program.set_uniform_i1(&format!("material.{}{}", texture_type, texture_index), info.id as i32);
+            }
+        }
+        program.set_uniform_i1("material.n_diffuse", diffuse_index);
+        program.set_uniform_i1("material.n_specular", specular_index);
+        let shininess = self.shininess.clone().unwrap_or(32f32);
+        program.set_uniform_f1("material.shininess", shininess);
+    }
+
     pub fn flattened_data(&self) -> Vec<f32> {
         match (&self.normals, &self.texture_coordinates) {
             (None, None) => {
@@ -204,7 +264,7 @@ impl Mesh {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Model(pub Vec<(Mesh, Shader)>);
 
 impl Model {
@@ -219,6 +279,16 @@ impl Model {
         ))
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct InstancedShader {
+    pub vertex_array: Arc<VertexArray>,
+    pub(crate) vertex_buffer: Arc<Buffer>,
+    pub(crate) offset_buffer: Arc<Buffer>,
+    pub(crate) elements_buffer: Option<Arc<Buffer>>,
+    pub textures: Vec<Arc<Texture>>
+}
+
 #[derive(Debug, Clone)]
 pub struct Shader {
     pub vertex_array: Arc<VertexArray>,

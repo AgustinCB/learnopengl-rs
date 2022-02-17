@@ -10,10 +10,10 @@ use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use log::warn;
 use nalgebra::{Matrix4, Scale3, Vector3};
-use russimp::texture::{TextureType as MaterialTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
 use crate::ecs::components::{Border, Mesh, Model, Shader, SkipRendering, Skybox, SKYBOX_VERTICES, TextureInfo, Transform, Transparent};
+use crate::ecs::systems::rendering::instanced_rendering::InstancedRendering;
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
 use crate::program::Program;
@@ -27,9 +27,22 @@ static SKYBOX_VERTEX_SHADER: &'static str = "17.1-uniform_buffer_object_vertex_s
 static SKYBOX_FRAGMENT_SHADER: &'static str = "16.1-skybox_fragment.glsl";
 static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
+fn set_lights<T: Light + Send + Sync + 'static>(program: &Program, world: &mut World, name: &str) {
+    let mut index = 0;
+    for (_e, light) in world.query_mut::<&T>() {
+        let name = format!("{}[{}]", name, index);
+        light.set_light_in_program(program, &name);
+        program.set_uniform_i1(&format!("{}.set", name), 1);
+        index += 1;
+    }
+}
+
+pub mod instanced_rendering;
+
 pub struct RenderingSystem {
     border_program: Program,
     clear_color: Vector3<f32>,
+    pub(crate) instanced_rendering: InstancedRendering,
     light_program: Program,
     main_camera: Rc<RefCell<Camera>>,
     meshes_program: Program,
@@ -81,6 +94,7 @@ impl RenderingSystem {
             meshes_program,
             skybox_program,
             uniform_buffer,
+            instanced_rendering: InstancedRendering::new(&shader_loader)?,
             main_camera: camera,
             textures_loaded: HashMap::new(),
         })
@@ -233,16 +247,6 @@ impl RenderingSystem {
         }
     }
 
-    fn set_lights<T: Light + Send + Sync + 'static>(&self, world: &mut World, name: &str) {
-        let mut index = 0;
-        for (_e, light) in world.query_mut::<&T>() {
-            let name = format!("{}[{}]", name, index);
-            light.set_light_in_program(&self.meshes_program, &name);
-            self.meshes_program.set_uniform_i1(&format!("{}.set", name), 1);
-            index += 1;
-        }
-    }
-
     fn draw_lights<T: Light + Send + Sync + 'static>(&self, world: &mut World) -> Result<(), String> {
         for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>().without::<Skybox>() {
             light.set_light_drawing_program_no_globals(
@@ -257,29 +261,7 @@ impl RenderingSystem {
     }
 
     fn render_mesh(&self, shader: &Shader, mesh: &Mesh) {
-        let mut diffuse_index = 0;
-        let mut specular_index = 0;
-        if let Some(infos) = &mesh.textures {
-            for (texture, info) in shader.textures.iter().zip(infos.iter()) {
-                texture.bind(gl::TEXTURE0 + info.id as u32);
-                let (texture_type, texture_index) = if info.texture_type == MaterialTextureType::Diffuse {
-                    let index = diffuse_index;
-                    diffuse_index += 1;
-                    ("diffuse", index)
-                } else if info.texture_type == MaterialTextureType::Specular {
-                    let index = specular_index;
-                    specular_index += 1;
-                    ("specular", index)
-                } else {
-                    panic!("Can't happen");
-                };
-                self.meshes_program.set_uniform_i1(&format!("material.{}{}", texture_type, texture_index), info.id as i32);
-            }
-        }
-        self.meshes_program.set_uniform_i1("material.n_diffuse", diffuse_index);
-        self.meshes_program.set_uniform_i1("material.n_specular", specular_index);
-        let shininess = mesh.shininess.clone().unwrap_or(32f32);
-        self.meshes_program.set_uniform_f1("material.shininess", shininess);
+        mesh.set_program(&self.meshes_program, &shader.textures);
         let n_vertices = mesh.vertices.len();
         shader.vertex_array.bind();
         gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
@@ -337,12 +319,16 @@ impl RenderingSystem {
         self.uniform_buffer.set_sub_data(0, view.len(), view.as_slice());
         self.uniform_buffer.set_sub_data(view.len(), projection.len(), projection.as_slice());
         self.uniform_buffer.unbind();
-        self.border_program.use_program();
-        self.meshes_program.use_program();
-        self.set_lights::<DirectionalLight>(world, "directional_lights");
-        self.set_lights::<SpotLight>(world, "spot_lights");
-        self.set_lights::<PointLight>(world, "point_lights");
-        self.meshes_program.set_uniform_v3("viewPos", (*self.main_camera).borrow().position());
+        self.set_rendering_program(&self.meshes_program, world);
+        self.set_rendering_program(&self.instanced_rendering.program, world);
+    }
+
+    fn set_rendering_program(&self, program: &Program, world: &mut World) {
+        program.use_program();
+        set_lights::<DirectionalLight>(&program, world, "directional_lights");
+        set_lights::<SpotLight>(&program, world, "spot_lights");
+        set_lights::<PointLight>(&program, world, "point_lights");
+        program.set_uniform_v3("viewPos", (*self.main_camera).borrow().position());
     }
 
     fn render_skybox(&self, world: &mut World) -> Result<(), String> {
@@ -450,6 +436,7 @@ impl System for RenderingSystem {
                 self.setup_gl_objects(shader, mesh)?;
             }
         }
+        self.instanced_rendering.setup_world(world)?;
         gl_function!(ClearStencil(0));
         gl_function!(ClearColor(self.clear_color.x, self.clear_color.y, self.clear_color.z, 1.0));
         Ok(())
@@ -466,6 +453,7 @@ impl System for RenderingSystem {
     fn late_update(&self, world: &mut World, _delta_time: f32) -> Result<(), String> {
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT));
         self.setup_program_globals(world);
+        self.instanced_rendering.render_world(world);
         self.render_non_bordered_objects(world);
         self.render_bordered_objects(world);
         self.render_transparent_objects(world)?;

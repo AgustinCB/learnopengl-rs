@@ -8,7 +8,7 @@ use russimp::node::Node;
 use russimp::scene::{PostProcess, Scene};
 use russimp::texture::{Texture, TextureType};
 use russimp::Vector3D;
-use crate::ecs::components::{Mesh, Model, TextureInfo};
+use crate::ecs::components::{InstancedModel, Mesh, Model, TextureInfo};
 use crate::ecs::systems::rendering::RenderingSystem;
 
 fn assimp_vector_to_algebra_vector2(input: Vector3D) -> Vector2<f32> {
@@ -89,7 +89,17 @@ fn process_node(scene: &Scene, node: Rc<RefCell<Node>>, meshes: &mut Vec<Mesh>, 
     Ok(())
 }
 
+pub fn load_instanciated_model(model_path: &str, rendering_system: &mut RenderingSystem, offsets: Vec<Vector3<f32>>) -> Result<InstancedModel, String> {
+    let meshes = load_object(model_path)?;
+    InstancedModel::new(meshes, rendering_system, offsets)
+}
+
 pub fn load_model(model_path: &str, rendering_system: &mut RenderingSystem) -> Result<Model, String> {
+    let meshes = load_object(model_path)?;
+    Model::from_meshes(meshes, rendering_system)
+}
+
+fn load_object(model_path: &str) -> Result<Vec<Mesh>, String> {
     let path = Path::new(model_path)
         .parent()
         .ok_or("Invalid path!".to_string())?;
@@ -100,5 +110,5 @@ pub fn load_model(model_path: &str, rendering_system: &mut RenderingSystem) -> R
     let root = scene.root.clone().ok_or("No root node".to_string())?;
     let mut meshes = vec![];
     process_node(&scene, root, &mut meshes, path)?;
-    Model::from_meshes(meshes, rendering_system)
+    Ok(meshes)
 }
