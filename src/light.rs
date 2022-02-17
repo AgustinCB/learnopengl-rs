@@ -52,9 +52,9 @@ pub struct PointLight {
     ambient: Vector3<f32>,
     diffuse: Vector3<f32>,
     specular: Vector3<f32>,
-    constant: f32,
-    linear: f32,
-    quadratic: f32,
+    pub constant: f32,
+    pub linear: f32,
+    pub quadratic: f32,
     model: Matrix4<f32>,
 }
 

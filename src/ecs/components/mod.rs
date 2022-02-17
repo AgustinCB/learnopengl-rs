@@ -195,7 +195,7 @@ impl Mesh {
         }
         program.set_uniform_i1("material.n_diffuse", diffuse_index);
         program.set_uniform_i1("material.n_specular", specular_index);
-        let shininess = self.shininess.clone().unwrap_or(32f32);
+        let shininess = self.shininess.clone().unwrap_or(64f32);
         program.set_uniform_f1("material.shininess", shininess);
     }
 
