@@ -63,11 +63,11 @@ impl System for InputSystem {
                     _ => {},
                 }
             }
-            events_by_type.insert(
-                InputType::Keyboard,
-                self.pressed_down.borrow().values().cloned().collect(),
-            );
         }
+        events_by_type.insert(
+            InputType::Keyboard,
+            self.pressed_down.borrow().values().cloned().collect(),
+        );
         for (_e, input) in world.query_mut::<&mut Input>() {
             let mut new_events = vec![];
             for input_type in input.input_types.iter() {
