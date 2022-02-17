@@ -29,6 +29,7 @@ impl From<&Event> for InputType {
 
 pub struct InputSystem {
     pub event_pumper: RefCell<EventPump>,
+    pub pressed_down: RefCell<HashMap<Keycode, Event>>,
 }
 
 impl System for InputSystem {
@@ -37,6 +38,7 @@ impl System for InputSystem {
     }
 
     fn start(&self, _world: &mut World) -> Result<(), String> {
+        self.pressed_down.borrow_mut().drain();
         Ok(())
     }
 
@@ -47,8 +49,24 @@ impl System for InputSystem {
             if !events_by_type.contains_key(&event_type) {
                 events_by_type.insert(event_type.clone(), vec![]);
             }
-            log::error!("EVENT: {:?}", event);
             events_by_type.get_mut(&event_type).unwrap().push(event);
+        }
+        if let Some(keyboard_events) = events_by_type.remove(&InputType::Keyboard) {
+            for e in keyboard_events {
+                match &e {
+                    Event::KeyDown { keycode: Some(keycode), .. } => {
+                        self.pressed_down.borrow_mut().insert(*keycode, e);
+                    },
+                    Event::KeyUp { keycode: Some(keycode), .. } => {
+                        self.pressed_down.borrow_mut().remove(keycode);
+                    },
+                    _ => {},
+                }
+            }
+            events_by_type.insert(
+                InputType::Keyboard,
+                self.pressed_down.borrow().values().cloned().collect(),
+            );
         }
         for (_e, input) in world.query_mut::<&mut Input>() {
             let mut new_events = vec![];

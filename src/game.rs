@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use hecs::{Component, DynamicBundle, Entity};
 use nalgebra::{Matrix4, Vector3};
@@ -174,12 +175,12 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.001f32,
+            camera_speed: 0.0005f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;
         self.world.add_system(Box::new(rendering));
-        self.world.add_system(Box::new(InputSystem { event_pumper: RefCell::new(self.window.get_pumper()) }));
+        self.world.add_system(Box::new(InputSystem { event_pumper: RefCell::new(self.window.get_pumper()), pressed_down: RefCell::new(HashMap::new()) }));
         self.world.add_system(Box::new(QuitSystem { game_ended: self.game_ended.clone() }));
         self.world.add_system(Box::new(FpsCameraSystem { camera: self.camera.clone(), mouse: self.window.mouse() }));
         for system in systems {
