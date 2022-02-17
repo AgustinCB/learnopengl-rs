@@ -10,6 +10,7 @@ pub enum TextureType {
     Texture2D = gl::TEXTURE_2D as isize,
     Texture3D = gl::TEXTURE_3D as isize,
     CubeMap = gl::TEXTURE_CUBE_MAP as isize,
+    Texture2DMultisample = gl::TEXTURE_2D_MULTISAMPLE as isize,
 }
 
 #[derive(Debug)]
@@ -20,6 +21,15 @@ impl Texture {
         let mut texture = 0 as gl::types::GLuint;
         gl_function!(GenTextures(1, &mut texture));
         Texture(texture, texture_type as u32, texture_type)
+    }
+
+    pub fn unbind(&self) {
+        gl_function!(BindTexture(self.1, 0));
+    }
+
+    pub fn bind_as(&self, unit: gl::types::GLenum, texture_type: gl::types::GLenum) {
+        gl_function!(ActiveTexture(unit));
+        gl_function!(BindTexture(texture_type, self.0));
     }
 
     pub fn bind(&self, unit: gl::types::GLenum) {

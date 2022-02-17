@@ -4,7 +4,7 @@ use crate::texture::{Texture, TextureType};
 
 #[derive(Debug)]
 pub struct FrameBuffer {
-    _render_buffer: RenderBuffer,
+    _render_buffer: Option<RenderBuffer>,
     resource: gl::types::GLuint,
     pub texture: Texture,
 }
@@ -20,12 +20,14 @@ impl FrameBuffer {
         texture.allocate_space(width, height);
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
+        texture.unbind();
 
         gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, TextureType::Texture2D as u32, texture.0, 0));
 
         let render_buffer = RenderBuffer::new();
         render_buffer.bind();
         gl_function!(RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width as _, height as _));
+        RenderBuffer::unbind();
         gl_function!(FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, render_buffer.0));
 
         let status = gl_function!(CheckFramebufferStatus(gl::FRAMEBUFFER));
@@ -34,10 +36,72 @@ impl FrameBuffer {
         }
         FrameBuffer::unbind();
         FrameBuffer {
-            _render_buffer: render_buffer,
-            texture: texture,
+            texture,
+            _render_buffer: Some(render_buffer),
             resource: frame_buffer,
         }
+    }
+
+    pub fn intermediate(width: u32, height: u32) -> FrameBuffer {
+        let mut frame_buffer = 0 as gl::types::GLuint;
+        gl_function!(GenFramebuffers(1, &mut frame_buffer));
+        gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
+
+        let texture = Texture::new(TextureType::Texture2D);
+        texture.just_bind();
+        texture.allocate_space(width, height);
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, TextureType::Texture2D as u32, texture.0, 0));
+
+        let status = gl_function!(CheckFramebufferStatus(gl::FRAMEBUFFER));
+        if status != gl::FRAMEBUFFER_COMPLETE {
+            error!("Error creating frame buffer, status code {}", status);
+        }
+        FrameBuffer::unbind();
+        FrameBuffer {
+            texture,
+            _render_buffer: None,
+            resource: frame_buffer,
+        }
+    }
+
+    pub fn multisample(width: u32, height: u32) -> FrameBuffer {
+        let mut frame_buffer = 0 as gl::types::GLuint;
+        gl_function!(GenFramebuffers(1, &mut frame_buffer));
+        gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
+
+        let texture = Texture::new(TextureType::Texture2DMultisample);
+        texture.just_bind();
+        gl_function!(TexImage2DMultisample(TextureType::Texture2DMultisample as _, 4, gl::RGB, width as i32, height as i32, gl::TRUE));
+        texture.unbind();
+
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, TextureType::Texture2DMultisample as u32, texture.0, 0));
+
+        let render_buffer = RenderBuffer::new();
+        render_buffer.bind();
+        gl_function!(RenderbufferStorageMultisample(gl::RENDERBUFFER, 4, gl::DEPTH24_STENCIL8, width as _, height as _));
+        RenderBuffer::unbind();
+        gl_function!(FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, render_buffer.0));
+
+        let status = gl_function!(CheckFramebufferStatus(gl::FRAMEBUFFER));
+        if status != gl::FRAMEBUFFER_COMPLETE {
+            error!("Error creating frame buffer, status code {}", status);
+        }
+        FrameBuffer::unbind();
+        FrameBuffer {
+            texture,
+            _render_buffer: Some(render_buffer),
+            resource: frame_buffer,
+        }
+    }
+
+    pub fn draw_bind(&self) {
+        gl_function!(BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.resource));
+    }
+
+    pub fn read_bind(&self) {
+        gl_function!(BindFramebuffer(gl::READ_FRAMEBUFFER, self.resource));
     }
 
     pub fn bind(&self) {

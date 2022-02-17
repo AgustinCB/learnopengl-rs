@@ -1,20 +1,26 @@
-use nalgebra::{Matrix3, Matrix4, Perspective3, Point3, Translation3, Unit, Vector3};
+use nalgebra::{Matrix3, Matrix4, Perspective3, Point3, Translation3, Unit, UnitVector3, Vector3};
 
 pub struct Camera {
     position: Vector3<f32>,
     front: Vector3<f32>,
     up: Unit<Vector3<f32>>,
+    world_up: Unit<Vector3<f32>>,
+    right: Unit<Vector3<f32>>,
     fov: f32,
     yaw: f32,
     pitch: f32,
 }
 
 impl Camera {
-    pub fn new(position: Vector3<f32>, front: Vector3<f32>, up: Unit<Vector3<f32>>) -> Camera {
+    pub fn new(position: Vector3<f32>, front: Vector3<f32>, world_up: Unit<Vector3<f32>>) -> Camera {
+        let right = UnitVector3::new_normalize(front.cross(&world_up));
+        let up = UnitVector3::new_normalize(right.cross(&front));
         Camera {
             position,
             front,
+            world_up,
             up,
+            right,
             fov: 45f32,
             pitch: 0f32,
             yaw: -90f32,
@@ -51,7 +57,7 @@ impl Camera {
     }
 
     pub fn move_right(&mut self, speed: f32) {
-        self.position += self.right() * speed;
+        self.position += Vector3::from_data(self.right.data) * speed;
     }
 
     pub fn move_up(&mut self, speed: f32) {
@@ -63,7 +69,7 @@ impl Camera {
     }
 
     pub fn move_around_right(&mut self, speed: f32) {
-        self.position += (self.front + self.right()) * speed;
+        self.position += (self.front + Vector3::from_data(self.right.data)) * speed;
     }
 
     pub fn set_front(&mut self, yaw: f32, pitch: f32) {
@@ -73,6 +79,8 @@ impl Camera {
         let y = pitch.to_radians().sin();
         let z = yaw.to_radians().sin() * pitch.to_radians().cos();
         self.front = Vector3::new(x, y, z).normalize();
+        self.right = UnitVector3::new_normalize(self.front.cross(&self.world_up));
+        self.up = UnitVector3::new_normalize(self.right.cross(&self.front));
     }
 
     pub fn move_front(&mut self, yaw_offset: f32, pitch_offset: f32) {
@@ -107,7 +115,4 @@ impl Camera {
         )
     }
 
-    fn right(&self) -> Vector3<f32> {
-        self.front.cross(&self.up).normalize()
-    }
 }

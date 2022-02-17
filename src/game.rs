@@ -25,6 +25,23 @@ pub struct Game {
 }
 
 impl Game {
+    pub fn new_with_anti_alias(
+        name: &str,
+        width: usize,
+        height: usize,
+        fps: usize,
+        clear_color: Vector3<f32>,
+        model_vertex_shader: &'static str,
+        model_fragment_shader: &'static str,
+        light_vertex_shader: &'static str,
+        light_fragment_shader: &'static str,
+        samples: u8,
+    ) -> Result<Game, String> {
+        env_logger::init();
+        let window = Window::new_with_anti_alias(name, width, height, samples).unwrap();
+        Self::build_with_window(fps, clear_color, model_vertex_shader, model_fragment_shader, light_vertex_shader, light_fragment_shader, window)
+    }
+
     pub fn new(
         name: &str,
         width: usize,
@@ -38,6 +55,18 @@ impl Game {
     ) -> Result<Game, String> {
         env_logger::init();
         let window = Window::new(name, width, height).unwrap();
+        Self::build_with_window(fps, clear_color, model_vertex_shader, model_fragment_shader, light_vertex_shader, light_fragment_shader, window)
+    }
+
+    fn build_with_window(
+        fps: usize,
+        clear_color: Vector3<f32>,
+        model_vertex_shader: &'static str,
+        model_fragment_shader: &'static str,
+        light_vertex_shader: &'static str,
+        light_fragment_shader: &'static str,
+        window: Window
+    ) -> Result<Game, String> {
         let world = World::new();
         let camera = Rc::new(RefCell::new(Camera::new(
             Vector3::new(0.0f32, 0f32, 3f32),
@@ -145,7 +174,7 @@ impl Game {
             quit_keycode: Keycode::Escape,
         }));
         self.spawn((Input::new(vec![InputType::Keyboard, InputType::Mouse]), FpsCamera {
-            camera_speed: 0.005f32,
+            camera_speed: 0.001f32,
         }));
         let rendering = self.rendering_system.take()
             .ok_or("No rendering system".to_string())?;

@@ -47,6 +47,7 @@ impl System for InputSystem {
             if !events_by_type.contains_key(&event_type) {
                 events_by_type.insert(event_type.clone(), vec![]);
             }
+            log::error!("EVENT: {:?}", event);
             events_by_type.get_mut(&event_type).unwrap().push(event);
         }
         for (_e, input) in world.query_mut::<&mut Input>() {
