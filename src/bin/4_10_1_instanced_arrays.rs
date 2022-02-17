@@ -1,7 +1,7 @@
-use nalgebra::{Rotation3, UnitVector3, Vector3};
+use nalgebra::{Scale3, Translation3, UnitVector3, Vector3};
 use russimp::texture::TextureType;
 use learnopengl::cube::cube_mesh;
-use learnopengl::ecs::components::{TextureInfo, Transform};
+use learnopengl::ecs::components::TextureInfo;
 use learnopengl::game::Game;
 use learnopengl::light::{DirectionalLight, PointLight};
 
@@ -39,7 +39,9 @@ pub fn main() -> Result<(), String> {
     let offset = 0.1f32;
     for i in (-10..10).step_by(2) {
         for j in (-10..10).step_by(2) {
-            offsets.push(Vector3::new(j as f32 / 10f32 + offset, i as f32 / 10f32 + offset, 0f32));
+            let translation = Translation3::new(j as f32 / 10f32 + offset, i as f32 / 10f32 + offset, 0f32).to_homogeneous();
+            let scale = Scale3::new(0.1f32, 0.1f32, 0.1f32).to_homogeneous();
+            offsets.push(translation * scale);
         }
     }
     let cube = cube_mesh(vec![
@@ -49,11 +51,7 @@ pub fn main() -> Result<(), String> {
             path: format!("{}/resource/container.jpg", env!("CARGO_MANIFEST_DIR")),
         }
     ]);
-    game.spawn_instanced_mesh(&cube, Transform {
-        position: Vector3::new(0f32, 0f32, 0f32),
-        rotation: Rotation3::identity(),
-        scale: Vector3::new(0.1f32, 0.1f32, 0.1f32),
-    }, offsets)?;
+    game.spawn_instanced_mesh(&cube, offsets)?;
     game.play_with_fps_camera(vec![])?;
     Ok(())
 }

@@ -18,6 +18,14 @@ pub fn get_flattened_vectors(vectors: &[Vector3<f32>]) -> Vec<f32> {
         .collect::<Vec<f32>>()
 }
 
+pub fn get_flattened_matrices(matrices: &[Matrix4<f32>]) -> Vec<f32> {
+    matrices.iter()
+        .map(|m| m.as_slice())
+        .flatten()
+        .cloned()
+        .collect()
+}
+
 pub struct SkipRendering;
 pub struct Transparent;
 
@@ -131,20 +139,20 @@ pub struct Skybox {
 
 #[derive(Clone, Debug)]
 pub struct InstancedMesh {
-    pub offsets: Vec<Vector3<f32>>,
+    pub models: Vec<Matrix4<f32>>,
     pub mesh: Mesh,
 }
 
 #[derive(Clone, Debug)]
 pub struct InstancedModel {
-    pub offsets: Vec<Vector3<f32>>,
+    pub models: Vec<Matrix4<f32>>,
     pub model: Vec<(Mesh, InstancedShader)>,
 }
 
 impl InstancedModel {
-    pub fn new(meshes: Vec<Mesh>, rendering: &mut RenderingSystem, offsets: Vec<Vector3<f32>>) -> Result<InstancedModel, String> {
+    pub fn new(meshes: Vec<Mesh>, rendering: &mut RenderingSystem, models: Vec<Matrix4<f32>>) -> Result<InstancedModel, String> {
         Ok(InstancedModel {
-            offsets,
+            models,
             model: meshes.into_iter().map(|m| {
                 let shader = rendering.shader_for_mesh(&m)?;
                 let shader = rendering.instanced_rendering.shader_for_mesh(&shader)?;
@@ -223,11 +231,7 @@ impl Mesh {
     }
 
     fn get_flattened_vertices(&self) -> Vec<f32> {
-        self.vertices.iter()
-            .map(|v| v.data.as_slice())
-            .flatten()
-            .cloned()
-            .collect::<Vec<f32>>()
+        get_flattened_vectors(&self.vertices)
     }
 
     fn flatten_all_with_vertices(

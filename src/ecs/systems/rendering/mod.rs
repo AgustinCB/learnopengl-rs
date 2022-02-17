@@ -417,14 +417,8 @@ impl System for RenderingSystem {
     }
 
     fn start(&self, world: &mut World) -> Result<(), String> {
-        gl_function!(Enable(gl::BLEND));
-        gl_function!(BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA));
         gl_function!(Enable(gl::DEPTH_TEST));
         gl_function!(DepthFunc(gl::LESS));
-        // TODO: Only do stencil test if there are components that require it
-        gl_function!(Enable(gl::STENCIL_TEST));
-        gl_function!(StencilFunc(gl::ALWAYS, 0, 0xff));
-        gl_function!(StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE));
         for (_e, shader) in world.query_mut::<&Shader>().with::<Skybox>() {
             self.setup_skybox(shader)?;
         }
@@ -455,8 +449,21 @@ impl System for RenderingSystem {
         self.setup_program_globals(world);
         self.instanced_rendering.render_world(world);
         self.render_non_bordered_objects(world);
-        self.render_bordered_objects(world);
-        self.render_transparent_objects(world)?;
+        if world.query_mut::<&Border>().into_iter().next().is_some() {
+            gl_function!(Enable(gl::STENCIL_TEST));
+            gl_function!(StencilFunc(gl::ALWAYS, 0, 0xff));
+            gl_function!(StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE));
+            self.render_bordered_objects(world);
+        } else {
+            gl_function!(Disable(gl::STENCIL_TEST));
+        }
+        if world.query_mut::<&Transparent>().into_iter().next().is_some() {
+            gl_function!(Enable(gl::BLEND));
+            gl_function!(BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA));
+            self.render_transparent_objects(world)?;
+        } else {
+            gl_function!(Disable(gl::BLEND));
+        }
         self.light_program.use_program();
         self.draw_lights::<DirectionalLight>(world)?;
         self.draw_lights::<SpotLight>(world)?;

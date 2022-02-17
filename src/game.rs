@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use hecs::{Component, DynamicBundle, Entity};
-use nalgebra::Vector3;
+use nalgebra::{Matrix4, Vector3};
 use sdl2::keyboard::Keycode;
 use crate::camera::Camera;
 use crate::ecs::components::{FpsCamera, Input, InstancedMesh, InstancedModel, Mesh, Model, QuitControl, Skybox, Transform};
@@ -12,7 +12,7 @@ use crate::ecs::systems::rendering::RenderingSystem;
 use crate::ecs::systems::system::System;
 use crate::ecs::world::World;
 use crate::light::{FlashLight, Light, SpotLight};
-use crate::loader::{load_instanciated_model, load_model};
+use crate::loader::{load_instanced_model, load_model};
 use crate::window::Window;
 
 pub struct Game {
@@ -80,10 +80,13 @@ impl Game {
         Ok(self.world.get_mut().spawn((model, transform)))
     }
 
-    pub fn spawn_instanced_model_from_file(&mut self, model: &str, transform: Transform, offset: Vec<Vector3<f32>>) -> Result<Entity, String> {
+    pub fn spawn_instanced_model_from_file(&mut self, model: &str, models: Vec<Matrix4<f32>>) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
-        let model = load_instanciated_model(model, rendering, offset)?;
-        Ok(self.world.get_mut().spawn((model, transform)))
+        let model = load_instanced_model(model, rendering, models)?;
+        let entity = self.world.get_mut().spawn(());
+        self.world.get_mut().insert_one(entity, model)
+            .map_err(|e| e.to_string())?;
+        Ok(entity)
     }
 
     pub fn spawn_skybox(&mut self, skybox: &Skybox) -> Result<Entity, String> {
@@ -98,19 +101,22 @@ impl Game {
         Ok(self.world.get_mut().spawn((mesh.clone(), shader, transform)))
     }
 
-    pub fn spawn_instanced_model(&mut self, model: Vec<Mesh>, transform: Transform, offsets: Vec<Vector3<f32>>) -> Result<Entity, String> {
+    pub fn spawn_instanced_model(&mut self, model: Vec<Mesh>, models: Vec<Matrix4<f32>>) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
-        Ok(self.world.get_mut().spawn((InstancedModel::new(model, rendering, offsets), transform)))
+        let entity = self.world.get_mut().spawn(());
+        self.world.get_mut().insert_one(entity, InstancedModel::new(model, rendering, models))
+            .map_err(|e| e.to_string())?;
+        Ok(entity)
     }
 
-    pub fn spawn_instanced_mesh(&mut self, mesh: &Mesh, transform: Transform, offsets: Vec<Vector3<f32>>) -> Result<Entity, String> {
+    pub fn spawn_instanced_mesh(&mut self, mesh: &Mesh, models: Vec<Matrix4<f32>>) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
         let shader = rendering.shader_for_mesh(mesh)?;
         let shader = rendering.instanced_rendering.shader_for_mesh(&shader)?;
         Ok(self.world.get_mut().spawn((InstancedMesh {
-            offsets,
+            models,
             mesh: mesh.clone()
-        }, shader, transform)))
+        }, shader)))
     }
 
     pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<(), String> {

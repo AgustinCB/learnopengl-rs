@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use hecs::World;
-use nalgebra::Vector3;
+use nalgebra::{Matrix4, Vector4};
 use crate::buffer::Buffer;
-use crate::ecs::components::{Border, get_flattened_vectors, InstancedMesh, InstancedModel, InstancedShader, Mesh, Shader, SkipRendering, Transform, Transparent};
+use crate::ecs::components::{Border, get_flattened_matrices, InstancedMesh, InstancedModel, InstancedShader, Mesh, Shader, SkipRendering, Transparent};
 use crate::program::Program;
 use crate::shader_loader::{ShaderLoader, ShaderType};
 use crate::vertex_array::VertexArray;
@@ -39,23 +39,23 @@ impl InstancedRendering {
 
     pub fn setup_world(&self, world: &mut World) -> Result<(), String> {
         for (_e, (shader, mesh)) in world.query_mut::<(&InstancedShader, &InstancedMesh)>() {
-            self.setup(shader, &mesh.mesh, &mesh.offsets)?;
+            self.setup(shader, &mesh.mesh, &mesh.models)?;
         }
         for (_e, model) in world.query::<&InstancedModel>().iter() {
             for (mesh, shader) in model.model.iter() {
-                self.setup(shader, mesh, &model.offsets)?;
+                self.setup(shader, mesh, &model.models)?;
             }
         }
         Ok(())
     }
 
-    fn setup(&self, shader: &InstancedShader, mesh: &Mesh, offsets: &[Vector3<f32>]) -> Result<(), String> {
+    fn setup(&self, shader: &InstancedShader, mesh: &Mesh, models: &[Matrix4<f32>]) -> Result<(), String> {
         shader.vertex_array.bind();
         shader.vertex_buffer.bind();
         shader.vertex_buffer.set_data(&mesh.flattened_data(), gl::STATIC_DRAW);
         shader.vertex_buffer.unbind();
         shader.offset_buffer.bind();
-        shader.offset_buffer.set_data(&get_flattened_vectors(&offsets), gl::STATIC_DRAW);
+        shader.offset_buffer.set_data(&get_flattened_matrices(&models), gl::STATIC_DRAW);
         shader.offset_buffer.unbind();
 
         if let Some(elements_buffer) = &shader.elements_buffer {
@@ -95,36 +95,38 @@ impl InstancedRendering {
         }
         shader.vertex_buffer.unbind();
         shader.offset_buffer.bind();
-        VertexArray::set_vertex_attrib_with_padding::<f32>(
-            gl::FLOAT, attribute, 3, 3, 0, false
-        );
+        let mat4size = Matrix4::<f32>::identity().len() as u32;
+        let vec4size = Vector4::<f32>::identity().len() as u32;
+        for i in attribute..attribute+4 {
+            VertexArray::set_vertex_attrib_with_padding::<f32>(
+                gl::FLOAT, i, mat4size, vec4size, (i - attribute) * vec4size, false
+            );
+            gl_function!(VertexAttribDivisor(i, 1));
+        }
         shader.offset_buffer.unbind();
-        gl_function!(VertexAttribDivisor(3, 1));
         VertexArray::unbind();
         Ok(())
     }
 
     pub fn render_world(&self, world: &mut World) {
         self.program.use_program();
-        for (_e, (mesh, shader, transform)) in world.query::<(&InstancedMesh, &InstancedShader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (_e, (mesh, shader)) in world.query::<(&InstancedMesh, &InstancedShader)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
             gl_function!(StencilMask(0x00));
-            self.render(&mesh.mesh, shader, mesh.offsets.len());
+            self.render(&mesh.mesh, shader, mesh.models.len());
         }
-        for (_e, (model, transform)) in world.query::<(&InstancedModel, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (_e, model) in world.query::<&InstancedModel>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
             gl_function!(StencilMask(0x00));
             for (mesh, shader) in model.model.iter() {
-                self.render(mesh, shader, model.offsets.len());
+                self.render(mesh, shader, model.models.len());
             }
         }
     }
 
-    fn render(&self, mesh: &Mesh, shader: &InstancedShader, offsets: usize) {
+    fn render(&self, mesh: &Mesh, shader: &InstancedShader, models: usize) {
         mesh.set_program(&self.program, &shader.textures);
         let n_vertices = mesh.vertices.len();
         shader.vertex_array.bind();
-        gl_function!(DrawArraysInstanced(gl::TRIANGLES, 0, n_vertices as _, offsets as _));
+        gl_function!(DrawArraysInstanced(gl::TRIANGLES, 0, n_vertices as _, models as _));
         VertexArray::unbind();
     }
 }

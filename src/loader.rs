@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Matrix4, Vector2, Vector3};
 use russimp::material::Material;
 use russimp::mesh::{Mesh as AssimpMesh};
 use russimp::node::Node;
@@ -89,9 +89,9 @@ fn process_node(scene: &Scene, node: Rc<RefCell<Node>>, meshes: &mut Vec<Mesh>, 
     Ok(())
 }
 
-pub fn load_instanciated_model(model_path: &str, rendering_system: &mut RenderingSystem, offsets: Vec<Vector3<f32>>) -> Result<InstancedModel, String> {
+pub fn load_instanced_model(model_path: &str, rendering_system: &mut RenderingSystem, models: Vec<Matrix4<f32>>) -> Result<InstancedModel, String> {
     let meshes = load_object(model_path)?;
-    InstancedModel::new(meshes, rendering_system, offsets)
+    InstancedModel::new(meshes, rendering_system, models)
 }
 
 pub fn load_model(model_path: &str, rendering_system: &mut RenderingSystem) -> Result<Model, String> {
