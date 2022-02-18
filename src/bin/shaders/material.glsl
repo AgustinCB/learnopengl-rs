@@ -1,20 +1,6 @@
 struct Material {
     sampler2D diffuse0;
-    sampler2D diffuse1;
-    sampler2D diffuse2;
-    sampler2D diffuse3;
-    sampler2D diffuse4;
-    sampler2D diffuse5;
-    sampler2D diffuse6;
-    sampler2D diffuse7;
     sampler2D specular0;
-    sampler2D specular1;
-    sampler2D specular2;
-    sampler2D specular3;
-    sampler2D specular4;
-    sampler2D specular5;
-    sampler2D specular6;
-    sampler2D specular7;
     float shininess;
     int n_diffuse;
     int n_specular;

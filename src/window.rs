@@ -29,6 +29,8 @@ impl Window {
             attrs.set_context_flags().forward_compatible().set();
         attrs.set_multisample_buffers(1);
         attrs.set_multisample_samples(size);
+        sdl_context.mouse().capture(true);
+        sdl_context.mouse().set_relative_mouse_mode(true);
 
         let window = video
             .window(name, width as _, height as _)
@@ -63,6 +65,8 @@ impl Window {
         attrs.set_context_profile(GLProfile::Core);
         #[cfg(target_os = "macos")]
             attrs.set_context_flags().forward_compatible().set();
+        sdl_context.mouse().capture(true);
+        sdl_context.mouse().set_relative_mouse_mode(true);
 
         let window = video
             .window(name, width as _, height as _)

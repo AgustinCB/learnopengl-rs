@@ -116,6 +116,23 @@ impl Texture {
         }
     }
 
+    pub fn allocate_depth_space(&self, width: u32, height: u32) {
+        match self.2 {
+            TextureType::Texture2D => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::DEPTH_COMPONENT as _,
+                width as _,
+                height as _,
+                0,
+                gl::DEPTH_COMPONENT as _,
+                gl::FLOAT,
+                ptr::null(),
+            )),
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn set_parameter(&self, parameter: gl::types::GLenum, value: gl::types::GLenum) {
         gl_function!(TexParameteri(self.1, parameter, value as i32));
     }

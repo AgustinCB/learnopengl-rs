@@ -96,6 +96,32 @@ impl FrameBuffer {
         }
     }
 
+    pub fn depth_buffer(width: u32, height: u32) -> FrameBuffer {
+        let mut frame_buffer = 0 as gl::types::GLuint;
+        gl_function!(GenFramebuffers(1, &mut frame_buffer));
+
+        let texture = Texture::new(TextureType::Texture2D);
+        texture.just_bind();
+        texture.allocate_depth_space(width, height);
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as _));
+        gl_function!(TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, [1f32, 1f32, 1f32, 1f32].as_ptr()));
+
+        gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, TextureType::Texture2D as u32, texture.0, 0));
+        gl_function!(DrawBuffer(gl::NONE));
+        gl_function!(ReadBuffer(gl::NONE));
+        FrameBuffer::unbind();
+
+        FrameBuffer {
+            texture,
+            _render_buffer: None,
+            resource: frame_buffer,
+        }
+    }
+
     pub fn draw_bind(&self) {
         gl_function!(BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.resource));
     }

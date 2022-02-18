@@ -238,7 +238,6 @@ pub fn main() -> Result<(), String> {
             program.set_uniform_matrix4("model", &t);
             gl_function!(DrawArrays(gl::TRIANGLES, 0, 36,));
         }
-        eprintln!("GOT ONE! {} {:?}", spot_light.position, spot_light.direction);
         spot_light.set_direction(UnitVector3::new_normalize(camera.front() - Vector3::repeat(1f32)));
         spot_light.set_position(camera.position() - Vector3::repeat(1f32));
         spot_light.set_light_drawing_program(&light_program, "light.specular", "model", ("view", &look_at), ("projection", &projection));

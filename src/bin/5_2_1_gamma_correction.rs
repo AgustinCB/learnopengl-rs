@@ -1,5 +1,5 @@
 use hecs::World;
-use nalgebra::{Rotation3, UnitVector3, Vector3};
+use nalgebra::Vector3;
 use russimp::texture::TextureType;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -9,7 +9,7 @@ use learnopengl::ecs::systems::input::InputType;
 use learnopengl::ecs::systems::system::System;
 use learnopengl::game::Game;
 use learnopengl::gl_function;
-use learnopengl::light::{DirectionalLight, PointLight};
+use learnopengl::light::PointLight;
 use learnopengl::plane::build_plane;
 
 struct GammaCorrectionControl;

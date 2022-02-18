@@ -12,7 +12,7 @@ use log::warn;
 use nalgebra::{Matrix4, Scale3, Vector3};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
-use crate::ecs::components::{Border, Mesh, Model, Shader, SkipRendering, Skybox, SKYBOX_VERTICES, TextureInfo, Transform, Transparent};
+use crate::ecs::components::{Border, ExtraUniform, Mesh, Model, Shader, SkipRendering, Skybox, SKYBOX_VERTICES, TextureInfo, Transform, Transparent, UniformValue};
 use crate::ecs::systems::rendering::instanced_rendering::InstancedRendering;
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
@@ -280,16 +280,16 @@ impl RenderingSystem {
         }
     }
 
-    fn render_bordered_objects(&self, world: &mut World) {
+    fn render_bordered_objects(&self, world: &mut World) -> Result<(), String> {
         self.meshes_program.use_program();
         gl_function!(StencilFunc(gl::ALWAYS, 1, 0xff));
         gl_function!(StencilMask(0xff));
-        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
-            self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
+            self.set_mesh_uniforms(world, e, &transform)?;
             self.render_mesh(shader, mesh);
         }
-        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
-            self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
+            self.set_mesh_uniforms(world, e, &transform)?;
             for (mesh, shader) in model.0.iter() {
                 self.render_mesh(shader, mesh);
             }
@@ -310,6 +310,7 @@ impl RenderingSystem {
         gl_function!(StencilMask(0xff));
         gl_function!(StencilFunc(gl::ALWAYS, 0, 0xff));
         gl_function!(Enable(gl::DEPTH_TEST));
+        Ok(())
     }
 
     fn setup_program_globals(&self, world: &mut World) {
@@ -346,20 +347,39 @@ impl RenderingSystem {
         Ok(())
     }
 
-    fn render_non_bordered_objects(&self, world: &mut World) {
+    fn render_non_bordered_objects(&self, world: &mut World) -> Result<(), String> {
         self.meshes_program.use_program();
-        for (_e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
+            self.set_mesh_uniforms(world, e, &transform)?;
             gl_function!(StencilMask(0x00));
             self.render_mesh(shader, mesh);
         }
-        for (_e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        for (e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
+            self.set_mesh_uniforms(world, e, &transform)?;
             gl_function!(StencilMask(0x00));
             for (mesh, shader) in model.0.iter() {
                 self.render_mesh(shader, mesh);
             }
         }
+        Ok(())
+    }
+
+    fn set_mesh_uniforms(&self, world: &World, e: Entity, transform: &&Transform) -> Result<(), String> {
+        let extra_uniforms = world.query_one::<&Vec<ExtraUniform>>(e).map_err(|e| e.to_string())?.get().cloned();
+        if let Some(extra_uniforms) = extra_uniforms {
+            for eu in extra_uniforms {
+                match &eu.value {
+                    UniformValue::Texture(i) => {
+                        self.meshes_program.set_uniform_i1(eu.name, *i as _);
+                    },
+                    UniformValue::Matrix(m) => {
+                        self.meshes_program.set_uniform_matrix4(eu.name, m);
+                    }
+                }
+            }
+        }
+        self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        Ok(())
     }
 
     fn render_transparent_objects(&self, world: &mut World) -> Result<(), String> {
@@ -390,14 +410,14 @@ impl RenderingSystem {
         let mut mesh = world.query_one::<(&Mesh, &Shader, &Transform)>(e).map_err(|e| e.to_string())?;
         match mesh.get() {
             Some((mesh, shader, transform)) => {
-                self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+                self.set_mesh_uniforms(world, e, &transform)?;
                 gl_function!(StencilMask(0x00));
                 self.render_mesh(shader, mesh);
             }
             None => {
                 let mut model = world.query_one::<(&Model, &Transform)>(e).map_err(|e| e.to_string())?;
                 if let Some((model, transform)) = model.get() {
-                    self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+                    self.set_mesh_uniforms(world, e, &transform)?;
                     gl_function!(StencilMask(0x00));
                     for (mesh, shader) in model.0.iter() {
                         self.render_mesh(shader, mesh);
@@ -448,12 +468,12 @@ impl System for RenderingSystem {
         gl_function!(Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT));
         self.setup_program_globals(world);
         self.instanced_rendering.render_world(world);
-        self.render_non_bordered_objects(world);
+        self.render_non_bordered_objects(world)?;
         if world.query_mut::<&Border>().into_iter().next().is_some() {
             gl_function!(Enable(gl::STENCIL_TEST));
             gl_function!(StencilFunc(gl::ALWAYS, 0, 0xff));
             gl_function!(StencilOp(gl::KEEP, gl::KEEP, gl::REPLACE));
-            self.render_bordered_objects(world);
+            self.render_bordered_objects(world)?;
         } else {
             gl_function!(Disable(gl::STENCIL_TEST));
         }

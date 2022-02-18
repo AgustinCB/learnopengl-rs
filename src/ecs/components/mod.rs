@@ -26,7 +26,19 @@ pub fn get_flattened_matrices(matrices: &[Matrix4<f32>]) -> Vec<f32> {
         .collect()
 }
 
+#[derive(Clone, Debug)]
+pub enum UniformValue {
+    Texture(u32),
+    Matrix(Matrix4<f32>),
+}
+#[derive(Clone, Debug)]
+pub struct ExtraUniform {
+    pub name: &'static str,
+    pub value: UniformValue,
+}
+#[derive(Clone, Debug)]
 pub struct SkipRendering;
+#[derive(Clone, Debug)]
 pub struct Transparent;
 
 #[derive(Clone, Debug)]

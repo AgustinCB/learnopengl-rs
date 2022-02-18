@@ -11,7 +11,7 @@ const VERTICES: [f32; 18] = [
 ];
 
 const NORMALS: [Vector3<f32>; 6] = [
-    Vector3::new(0f32, 0f32, 1f32); 6
+    Vector3::new(0f32, 1f32, 0f32); 6
 ];
 
 const TEXTURE_COORDINATES: [Vector2<f32>; 6] = [

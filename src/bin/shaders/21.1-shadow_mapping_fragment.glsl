@@ -11,10 +11,12 @@ uniform PointLight point_lights[MAX_LIGHTS];
 uniform SpotLight spot_lights[MAX_LIGHTS];
 uniform Material material;
 uniform vec3 viewPos;
+uniform sampler2D shadowMap;
 
 in vec3 Normal;
 in vec3 FragPos;
 in vec2 TexCoords;
+in vec4 FragPosLightSpace;
 
 out vec4 FragColor;
 
@@ -29,15 +31,8 @@ void main()
 
     vec3 result = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; i++) {
-        result += calculateDirectionalLight(directional_lights[i], material, norm, viewDir, TexCoords);
-    }
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        result += calculatePointLight(point_lights[i], material, norm, FragPos, viewDir, TexCoords);
-    }
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        result += calculateSpotLight(spot_lights[i], material, norm, FragPos, viewDir, TexCoords);
+        result += calculatePointLightWithShadow(point_lights[i], shadowMap, FragPosLightSpace, material, norm, FragPos, viewDir, TexCoords);
     }
 
-    result = pow(result, vec3(1.0/2.2));
     FragColor = vec4(result, alpha);
 }
