@@ -369,6 +369,9 @@ impl RenderingSystem {
         if let Some(extra_uniforms) = extra_uniforms {
             for eu in extra_uniforms {
                 match &eu.value {
+                    UniformValue::Float(f) => {
+                        self.meshes_program.set_uniform_f1(eu.name, *f);
+                    }
                     UniformValue::Texture(i) => {
                         self.meshes_program.set_uniform_i1(eu.name, *i as _);
                     },

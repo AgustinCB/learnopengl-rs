@@ -14,7 +14,7 @@ pub enum TextureType {
 }
 
 #[derive(Debug)]
-pub struct Texture(pub(crate) gl::types::GLuint, gl::types::GLenum, TextureType);
+pub struct Texture(pub(crate) gl::types::GLuint, pub(crate) gl::types::GLenum, TextureType);
 
 impl Texture {
     pub fn new(texture_type: TextureType) -> Texture {
@@ -43,6 +43,20 @@ impl Texture {
 
     pub fn generate_mipmap(&self) {
         gl_function!(GenerateMipmap(self.1));
+    }
+
+    pub fn alloc_depth_cube_map_face(&self, face: u32, width: usize, height: usize) {
+        gl_function!(TexImage2D(
+            gl::TEXTURE_CUBE_MAP_POSITIVE_X + face,
+            0,
+            gl::DEPTH_COMPONENT as _,
+            width as _,
+            height as _,
+            0,
+            gl::DEPTH_COMPONENT as _,
+            gl::FLOAT,
+            ptr::null(),
+        ));
     }
 
     pub fn set_cube_map_face(&self, face: u32, width: usize, height: usize, data: &[u8]) {

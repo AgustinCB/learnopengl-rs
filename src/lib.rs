@@ -8,7 +8,7 @@ macro_rules! gl_function {
                 log::trace!("gl{}({})", stringify!($a), stringify!($($b)*));
                 let error_code = gl::GetError();
                 if error_code != gl::NO_ERROR {
-                    log::error!("ERROR CODE {}", error_code);
+                    log::error!("ERROR CODE {} on gl{}({})", error_code, stringify!($a), stringify!($($b)*));
                     std::process::exit(error_code as i32);
                 }
             }

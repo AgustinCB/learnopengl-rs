@@ -110,7 +110,25 @@ impl FrameBuffer {
         gl_function!(TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, [1f32, 1f32, 1f32, 1f32].as_ptr()));
 
         gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
-        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, TextureType::Texture2D as u32, texture.0, 0));
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, texture.1, texture.0, 0));
+        gl_function!(DrawBuffer(gl::NONE));
+        gl_function!(ReadBuffer(gl::NONE));
+        FrameBuffer::unbind();
+
+        FrameBuffer {
+            texture,
+            _render_buffer: None,
+            resource: frame_buffer,
+        }
+    }
+
+    pub fn depth_cubemap_with_texture(texture: Texture) -> FrameBuffer {
+        let mut frame_buffer = 0 as gl::types::GLuint;
+        gl_function!(GenFramebuffers(1, &mut frame_buffer));
+
+        texture.just_bind();
+        gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
+        gl_function!(FramebufferTexture(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, texture.0, 0));
         gl_function!(DrawBuffer(gl::NONE));
         gl_function!(ReadBuffer(gl::NONE));
         FrameBuffer::unbind();

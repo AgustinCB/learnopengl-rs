@@ -28,6 +28,7 @@ pub fn get_flattened_matrices(matrices: &[Matrix4<f32>]) -> Vec<f32> {
 
 #[derive(Clone, Debug)]
 pub enum UniformValue {
+    Float(f32),
     Texture(u32),
     Matrix(Matrix4<f32>),
 }

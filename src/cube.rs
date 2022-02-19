@@ -1,7 +1,7 @@
 use nalgebra::{Point3, Translation3, Vector2, Vector3};
 use crate::ecs::components::{Mesh, TextureInfo};
 
-const VERTICES: [f32; 108] = [
+pub const VERTICES: [f32; 108] = [
     -0.5f32, -0.5f32, -0.5f32,
     0.5f32, -0.5f32, -0.5f32,
     0.5f32,  0.5f32, -0.5f32,
