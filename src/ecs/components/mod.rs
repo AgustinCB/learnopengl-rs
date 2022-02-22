@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use itertools::multizip;
 use nalgebra::{ArrayStorage, Matrix, Matrix4, Rotation3, Scale3, Translation3, U1, Vector2, Vector3};
 use russimp::texture::TextureType;
 use sdl2::event::Event;
@@ -151,6 +152,9 @@ pub struct Skybox {
 }
 
 #[derive(Clone, Debug)]
+pub struct WithNormals;
+
+#[derive(Clone, Debug)]
 pub struct InstancedMesh {
     pub models: Vec<Matrix4<f32>>,
     pub mesh: Mesh,
@@ -189,6 +193,7 @@ impl Mesh {
     pub fn set_program(&self, program: &Program, textures: &[Arc<Texture>]) {
         let mut diffuse_index = 0;
         let mut specular_index = 0;
+        let mut normal_index = 0;
         if let Some(infos) = &self.textures {
             for (texture, info) in textures.iter().zip(infos.iter()) {
                 texture.bind(gl::TEXTURE0 + info.id as u32);
@@ -200,6 +205,10 @@ impl Mesh {
                     let index = specular_index;
                     specular_index += 1;
                     ("specular", index)
+                } else if info.texture_type == TextureType::Normals {
+                    let index = normal_index;
+                    normal_index += 1;
+                    ("normal", index)
                 } else {
                     panic!("Can't happen");
                 };
@@ -252,10 +261,8 @@ impl Mesh {
         normals: &[Vector3<f32>],
         texture_coordinates: &[Vector2<f32>],
     ) -> Vec<f32> {
-        self.vertices.iter()
-            .zip(normals)
-            .zip(texture_coordinates)
-            .map(|((v, n), t)| {
+        multizip((self.vertices.iter(), normals, texture_coordinates))
+            .map(|(v, n, t)| {
                 let mut d = v.data.as_slice().to_vec();
                 d.extend(n.data.as_slice());
                 d.extend(t.data.as_slice());

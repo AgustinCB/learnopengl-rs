@@ -10,10 +10,12 @@ use image::io::Reader;
 use include_dir::{Dir, include_dir};
 use log::warn;
 use nalgebra::{Matrix4, Scale3, Vector3};
+use russimp::texture::{TextureType as AssimpTextureType};
 use crate::buffer::Buffer;
 use crate::camera::Camera;
 use crate::ecs::components::{Border, ExtraUniform, Mesh, Model, Shader, SkipRendering, Skybox, SKYBOX_VERTICES, TextureInfo, Transform, Transparent, UniformValue};
 use crate::ecs::systems::rendering::instanced_rendering::InstancedRendering;
+use crate::ecs::systems::rendering::normal_mapping_rendering::NormalMappingRendering;
 use crate::ecs::systems::system::System;
 use crate::light::{DirectionalLight, Light, PointLight, SpotLight};
 use crate::program::Program;
@@ -38,11 +40,13 @@ fn set_lights<T: Light + Send + Sync + 'static>(program: &Program, world: &mut W
 }
 
 pub mod instanced_rendering;
+pub mod normal_mapping_rendering;
 
 pub struct RenderingSystem {
     border_program: Program,
     clear_color: Vector3<f32>,
     pub(crate) instanced_rendering: InstancedRendering,
+    pub(crate) normal_mapping_rendering: NormalMappingRendering,
     light_program: Program,
     main_camera: Rc<RefCell<Camera>>,
     meshes_program: Program,
@@ -95,6 +99,7 @@ impl RenderingSystem {
             skybox_program,
             uniform_buffer,
             instanced_rendering: InstancedRendering::new(&shader_loader)?,
+            normal_mapping_rendering: NormalMappingRendering::new(&shader_loader)?,
             main_camera: camera,
             textures_loaded: HashMap::new(),
         })
@@ -260,8 +265,8 @@ impl RenderingSystem {
         Ok(())
     }
 
-    fn render_mesh(&self, shader: &Shader, mesh: &Mesh) {
-        mesh.set_program(&self.meshes_program, &shader.textures);
+    fn render_mesh(&self, program: &Program, shader: &Shader, mesh: &Mesh) {
+        mesh.set_program(&program, &shader.textures);
         let n_vertices = mesh.vertices.len();
         shader.vertex_array.bind();
         gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
@@ -281,19 +286,13 @@ impl RenderingSystem {
     }
 
     fn render_bordered_objects(&self, world: &mut World) -> Result<(), String> {
-        self.meshes_program.use_program();
         gl_function!(StencilFunc(gl::ALWAYS, 1, 0xff));
         gl_function!(StencilMask(0xff));
-        for (e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
-            self.set_mesh_uniforms(world, e, &transform)?;
-            self.render_mesh(shader, mesh);
-        }
-        for (e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<SkipRendering>().with::<Border>().iter() {
-            self.set_mesh_uniforms(world, e, &transform)?;
-            for (mesh, shader) in model.0.iter() {
-                self.render_mesh(shader, mesh);
-            }
-        }
+        self.render_objects(
+            world.query::<(&Mesh, &Shader, &Transform)>().without::<SkipRendering>().with::<Border>().iter(),
+            world.query::<(&Model, &Transform)>().without::<SkipRendering>().with::<Border>().iter(),
+            world,
+        )?;
         gl_function!(StencilFunc(gl::NOTEQUAL, 1, 0xff));
         gl_function!(StencilMask(0x00));
         gl_function!(Disable(gl::DEPTH_TEST));
@@ -321,6 +320,7 @@ impl RenderingSystem {
         self.uniform_buffer.set_sub_data(view.len(), projection.len(), projection.as_slice());
         self.uniform_buffer.unbind();
         self.set_rendering_program(&self.meshes_program, world);
+        self.set_rendering_program(&self.normal_mapping_rendering.program, world);
         self.set_rendering_program(&self.instanced_rendering.program, world);
     }
 
@@ -348,45 +348,75 @@ impl RenderingSystem {
     }
 
     fn render_non_bordered_objects(&self, world: &mut World) -> Result<(), String> {
-        self.meshes_program.use_program();
-        for (e, (mesh, shader, transform)) in world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.set_mesh_uniforms(world, e, &transform)?;
-            gl_function!(StencilMask(0x00));
-            self.render_mesh(shader, mesh);
+        gl_function!(StencilMask(0x00));
+        self.render_objects(
+            world.query::<(&Mesh, &Shader, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter(),
+            world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter(),
+            world,
+        )?;
+        Ok(())
+    }
+
+    fn get_rendering_program(&self, mesh: &Mesh) -> &Program {
+        match &mesh.textures {
+            Some(textures) => {
+                let normal_texture = textures.iter().find(|t| t.texture_type == AssimpTextureType::Normals);
+                if normal_texture.is_some() {
+                    &self.normal_mapping_rendering.program
+                } else {
+                    &self.meshes_program
+                }
+            }
+            None => &self.meshes_program
         }
-        for (e, (model, transform)) in world.query::<(&Model, &Transform)>().without::<Border>().without::<Transparent>().without::<SkipRendering>().iter() {
-            self.set_mesh_uniforms(world, e, &transform)?;
-            gl_function!(StencilMask(0x00));
+    }
+
+    fn render_objects<
+        'a,
+        I: Iterator<Item=(Entity, (&'a Mesh, &'a Shader, &'a Transform))>,
+        J: Iterator<Item=(Entity, (&'a Model, &'a Transform))>
+    >(
+        &self, mesh_query_results: I, model_query_results: J, world: &World,
+    ) -> Result<(), String> {
+        for (e, (mesh, shader, transform)) in mesh_query_results {
+            let program = self.get_rendering_program(mesh);
+            program.use_program();
+            self.set_mesh_uniforms(program, world, e, &transform)?;
+            self.render_mesh(&program, shader, mesh);
+        }
+        for (e, (model, transform)) in model_query_results {
             for (mesh, shader) in model.0.iter() {
-                self.render_mesh(shader, mesh);
+                let program = self.get_rendering_program(mesh);
+                program.use_program();
+                self.set_mesh_uniforms(program, world, e, &transform)?;
+                self.render_mesh(&program, shader, mesh);
             }
         }
         Ok(())
     }
 
-    fn set_mesh_uniforms(&self, world: &World, e: Entity, transform: &&Transform) -> Result<(), String> {
+    fn set_mesh_uniforms(&self, program: &Program, world: &World, e: Entity, transform: &&Transform) -> Result<(), String> {
         let extra_uniforms = world.query_one::<&Vec<ExtraUniform>>(e).map_err(|e| e.to_string())?.get().cloned();
         if let Some(extra_uniforms) = extra_uniforms {
             for eu in extra_uniforms {
                 match &eu.value {
                     UniformValue::Float(f) => {
-                        self.meshes_program.set_uniform_f1(eu.name, *f);
+                        program.set_uniform_f1(eu.name, *f);
                     }
                     UniformValue::Texture(i) => {
-                        self.meshes_program.set_uniform_i1(eu.name, *i as _);
+                        program.set_uniform_i1(eu.name, *i as _);
                     },
                     UniformValue::Matrix(m) => {
-                        self.meshes_program.set_uniform_matrix4(eu.name, m);
+                        program.set_uniform_matrix4(eu.name, m);
                     }
                 }
             }
         }
-        self.meshes_program.set_uniform_matrix4("model", &transform.get_model_matrix());
+        program.set_uniform_matrix4("model", &transform.get_model_matrix());
         Ok(())
     }
 
     fn render_transparent_objects(&self, world: &mut World) -> Result<(), String> {
-        self.meshes_program.use_program();
         let mut entities = vec![];
         for (e, transform) in world.query::<&Transform>().without::<SkipRendering>()
             .with::<Transparent>()
@@ -403,27 +433,27 @@ impl RenderingSystem {
                 Ordering::Greater
             }
         );
+        gl_function!(StencilMask(0x00));
+        self.meshes_program.use_program();
         for (_, e) in entities {
-            self.render_entity(e, world)?;
+            self.render_entity(&self.meshes_program, e, world)?;
         }
         Ok(())
     }
 
-    fn render_entity(&self, e: Entity, world: &mut World) -> Result<(), String> {
+    fn render_entity(&self, program: &Program, e: Entity, world: &mut World) -> Result<(), String> {
         let mut mesh = world.query_one::<(&Mesh, &Shader, &Transform)>(e).map_err(|e| e.to_string())?;
         match mesh.get() {
             Some((mesh, shader, transform)) => {
-                self.set_mesh_uniforms(world, e, &transform)?;
-                gl_function!(StencilMask(0x00));
-                self.render_mesh(shader, mesh);
+                self.set_mesh_uniforms(program, world, e, &transform)?;
+                self.render_mesh(&program, shader, mesh);
             }
             None => {
                 let mut model = world.query_one::<(&Model, &Transform)>(e).map_err(|e| e.to_string())?;
                 if let Some((model, transform)) = model.get() {
-                    self.set_mesh_uniforms(world, e, &transform)?;
-                    gl_function!(StencilMask(0x00));
+                    self.set_mesh_uniforms(program, world, e, &transform)?;
                     for (mesh, shader) in model.0.iter() {
-                        self.render_mesh(shader, mesh);
+                        self.render_mesh(&program, shader, mesh);
                     }
                 } else {
                     warn!("Renderable entity {:?} has no mesh nor model", e);

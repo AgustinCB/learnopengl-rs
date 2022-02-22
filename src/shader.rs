@@ -21,10 +21,12 @@ fn check_success(
             transmute(&mut len),
             transmute(buf.as_mut_ptr()),
         ));
-        Err(std::str::from_utf8(&buf)
+        let s = std::str::from_utf8(&buf)
             .ok()
             .expect("ShaderInfoLog not valid utf8")
-            .to_string())
+            .to_string();
+        log::error!("{}", &s);
+        Err(s)
     } else {
         Ok(())
     }

@@ -6,11 +6,11 @@ struct DirectionalLight {
     bool set;
 };
 
-vec3 calculateDirectionalLight(
-    DirectionalLight light, Material material, vec3 normal, vec3 viewDir, vec2 texCoords
+vec3 calculateDirectionalLightWithLightDirection(
+    DirectionalLight light, vec3 direction, Material material, vec3 normal, vec3 viewDir, vec2 texCoords
 ) {
     if (!light.set) return vec3(0.0);
-    vec3 lightDir = normalize(-light.direction);
+    vec3 lightDir = normalize(-direction);
 
     float diff = max(dot(lightDir, normal), 0.0);
 
@@ -30,4 +30,10 @@ vec3 calculateDirectionalLight(
     }
 
     return (ambient + diffuse + specular);
+}
+
+vec3 calculateDirectionalLight(
+    DirectionalLight light, Material material, vec3 normal, vec3 viewDir, vec2 texCoords
+) {
+    return calculateDirectionalLightWithLightDirection(light, light.direction, material, normal, viewDir, texCoords);
 }

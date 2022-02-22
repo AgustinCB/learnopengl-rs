@@ -26,10 +26,12 @@ fn check_success(
             ptr::null_mut(),
             buf.as_mut_ptr() as *mut gl::types::GLchar,
         ));
-        Err(std::str::from_utf8(&buf)
+        let s = std::str::from_utf8(&buf)
             .ok()
-            .expect("ShaderInfoLog not valid utf8")
-            .to_string())
+            .expect("ProgramInfoLog not valid utf8")
+            .to_string();
+        log::error!("{}", &s);
+        Err(s)
     } else {
         Ok(())
     }

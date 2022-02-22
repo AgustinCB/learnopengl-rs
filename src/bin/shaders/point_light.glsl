@@ -55,11 +55,11 @@ float shadowCalculationInLightSpace(vec4 fragPosLightSpace, sampler2D shadowMap,
     return shadow;
 }
 
-vec3 calculatePointLight(
-    PointLight light, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
+vec3 calculatePointLightWithPosition(
+    PointLight light, vec3 position, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
 ) {
     if (!light.set) return vec3(0.0);
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = normalize(position - fragPos);
 
     float diff = max(dot(lightDir, normal), 0.0);
 
@@ -68,7 +68,7 @@ vec3 calculatePointLight(
 
     float distance    = length(light.position - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance +
-                        light.quadratic * (distance * distance));
+    light.quadratic * (distance * distance));
 
     vec3 ambient = vec3(0.0);
     vec3 diffuse = vec3(0.0);
@@ -83,6 +83,12 @@ vec3 calculatePointLight(
     specular *= attenuation;
 
     return (ambient + diffuse + specular);
+}
+
+vec3 calculatePointLight(
+    PointLight light, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
+) {
+    return calculatePointLightWithPosition(light, light.position, material, normal, fragPos, viewDir, texCoords);
 }
 
 vec3 calculatePointLightWithShadow(
