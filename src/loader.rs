@@ -59,7 +59,19 @@ fn get_textures_from_material(material: &Material, scene_path: &Path) -> Result<
 }
 
 fn assimp_mesh_to_mesh(assimp_mesh: &AssimpMesh, materials: &[Material], scene_path: &Path) -> Result<Mesh, String> {
+    let tangents = if assimp_mesh.tangents.len() == 0 {
+        None
+    } else {
+        Some(assimp_vec_vector_to_vec_algebra_vector3(&assimp_mesh.tangents))
+    };
+    let bitangents = if assimp_mesh.bitangents.len() == 0 {
+        None
+    } else {
+        Some(assimp_vec_vector_to_vec_algebra_vector3(&assimp_mesh.bitangents))
+    };
     Ok(Mesh {
+        bitangents,
+        tangents,
         vertices: assimp_vec_vector_to_vec_algebra_vector3(&assimp_mesh.vertices),
         normals: Some(assimp_vec_vector_to_vec_algebra_vector3(&assimp_mesh.normals)),
         indices: None,
@@ -105,7 +117,7 @@ fn load_object(model_path: &str) -> Result<Vec<Mesh>, String> {
         .ok_or("Invalid path!".to_string())?;
     let scene = Scene::from_file(
         model_path,
-        vec![PostProcess::Triangulate, PostProcess::FlipUVs]
+        vec![PostProcess::Triangulate, PostProcess::FlipUVs, PostProcess::CalculateTangentSpace]
     ).map_err(|e| e.to_string())?;
     let root = scene.root.clone().ok_or("No root node".to_string())?;
     let mut meshes = vec![];

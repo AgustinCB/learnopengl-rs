@@ -49,6 +49,8 @@ pub fn build_plane(y_position: f32, scale: f32, texture_scale: f32, textures: Ve
         texture_coordinates,
         vertices,
         normals: Some(NORMALS.to_vec()),
+        tangents: None,
+        bitangents: None,
         indices: None,
         shininess: None,
     }

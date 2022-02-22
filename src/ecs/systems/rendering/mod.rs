@@ -178,6 +178,22 @@ impl RenderingSystem {
             VertexArray::set_vertex_attrib_with_padding::<f32>(
                 gl::FLOAT, attribute, mesh.vertex_info_size() as _, 2, offset, false
             );
+            offset += 2;
+            attribute += 1;
+        }
+
+        if mesh.tangents.is_some() {
+            VertexArray::set_vertex_attrib_with_padding::<f32>(
+                gl::FLOAT, attribute, mesh.vertex_info_size() as _, 3, offset, false
+            );
+            offset += 3;
+            attribute += 1;
+        }
+
+        if mesh.bitangents.is_some() {
+            VertexArray::set_vertex_attrib_with_padding::<f32>(
+                gl::FLOAT, attribute, mesh.vertex_info_size() as _, 3, offset, false
+            );
         }
         VertexArray::unbind();
         Ok(())
@@ -320,7 +336,8 @@ impl RenderingSystem {
         self.uniform_buffer.set_sub_data(view.len(), projection.len(), projection.as_slice());
         self.uniform_buffer.unbind();
         self.set_rendering_program(&self.meshes_program, world);
-        self.set_rendering_program(&self.normal_mapping_rendering.program, world);
+        self.set_rendering_program(&self.normal_mapping_rendering.dynamic_calculation_program, world);
+        self.set_rendering_program(&self.normal_mapping_rendering.precomputed_program, world);
         self.set_rendering_program(&self.instanced_rendering.program, world);
     }
 
@@ -362,7 +379,7 @@ impl RenderingSystem {
             Some(textures) => {
                 let normal_texture = textures.iter().find(|t| t.texture_type == AssimpTextureType::Normals);
                 if normal_texture.is_some() {
-                    &self.normal_mapping_rendering.program
+                    &self.normal_mapping_rendering.get_program_for_mesh(mesh)
                 } else {
                     &self.meshes_program
                 }
