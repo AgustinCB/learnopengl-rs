@@ -27,6 +27,10 @@ impl NormalMappingRendering {
         ])?;
         dynamic_calculation_program.bind_uniform_block("Matrices", 0);
         precomputed_program.bind_uniform_block("Matrices", 0);
+        dynamic_calculation_program.use_program();
+        dynamic_calculation_program.set_uniform_f1("height_scale", 0.1f32);
+        precomputed_program.use_program();
+        precomputed_program.set_uniform_f1("height_scale", 0.1f32);
         Ok(NormalMappingRendering {
             dynamic_calculation_program,
             precomputed_program,

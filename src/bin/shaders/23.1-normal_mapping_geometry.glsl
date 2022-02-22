@@ -30,11 +30,6 @@ void main() {
         delta_uv2.y * edge1.y - delta_uv1.y * edge2.y,
         delta_uv2.y * edge1.z - delta_uv1.y * edge2.z
     );
-    vec3 bitangent = f * vec3(
-        -delta_uv2.x * edge1.x + delta_uv1.x * edge2.x,
-        -delta_uv2.x * edge1.y + delta_uv1.x * edge2.y,
-        -delta_uv2.x * edge1.z + delta_uv1.x * edge2.z
-    );
     for (int i = 0; i < 3; i += 1) {
         vec3 T = normalize(gs_in[i].NormalMatrix * tangent);
         vec3 N = normalize(gs_in[i].Normal);

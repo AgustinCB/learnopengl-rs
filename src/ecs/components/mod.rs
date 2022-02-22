@@ -196,6 +196,7 @@ impl Mesh {
         let mut diffuse_index = 0;
         let mut specular_index = 0;
         let mut normal_index = 0;
+        let mut height_index = 0;
         if let Some(infos) = &self.textures {
             for (texture, info) in textures.iter().zip(infos.iter()) {
                 texture.bind(gl::TEXTURE0 + info.id as u32);
@@ -211,6 +212,10 @@ impl Mesh {
                     let index = normal_index;
                     normal_index += 1;
                     ("normal", index)
+                } else if info.texture_type == TextureType::Height {
+                    let index = height_index;
+                    height_index += 1;
+                    ("height", index)
                 } else {
                     panic!("Can't happen");
                 };
@@ -219,6 +224,7 @@ impl Mesh {
         }
         program.set_uniform_i1("material.n_diffuse", diffuse_index);
         program.set_uniform_i1("material.n_specular", specular_index);
+        program.set_uniform_i1("material.n_height", height_index);
         let shininess = self.shininess.clone().unwrap_or(64f32);
         program.set_uniform_f1("material.shininess", shininess);
     }
