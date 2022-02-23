@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use hecs::World;
-use nalgebra::{point, Rotation3, Vector3};
+use nalgebra::{Rotation3, Vector3};
 use russimp::texture::TextureType;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
