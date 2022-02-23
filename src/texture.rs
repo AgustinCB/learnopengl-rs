@@ -13,6 +13,7 @@ pub enum TextureType {
     Texture2DMultisample = gl::TEXTURE_2D_MULTISAMPLE as isize,
 }
 
+#[derive(Clone, Copy)]
 pub enum TextureFormat {
     FloatingPoint,
     UnsignedByte,
@@ -169,5 +170,11 @@ impl Texture {
 
     pub fn set_parameter(&self, parameter: gl::types::GLenum, value: gl::types::GLenum) {
         gl_function!(TexParameteri(self.1, parameter, value as i32));
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        gl_function!(DeleteTextures(1, &self.0));
     }
 }

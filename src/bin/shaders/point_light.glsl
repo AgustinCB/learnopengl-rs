@@ -79,8 +79,10 @@ vec3 calculatePointLightWithPosition(
     diffuse *= attenuation;
 
     vec3 specular = vec3(0.0);
-    specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
-    specular *= attenuation;
+    if (material.n_specular > 0) {
+        specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
+        specular *= attenuation;
+    }
 
     return (ambient + diffuse + specular);
 }
@@ -115,8 +117,10 @@ vec3 calculatePointLightWithShadow(
     diffuse *= attenuation;
 
     vec3 specular = vec3(0.0);
-    specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
-    specular *= attenuation;
+    if (material.n_specular > 0) {
+        specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
+        specular *= attenuation;
+    }
 
     float shadow = shadowCalculationInLightSpace(fragPosLightSpace, shadowMap, normal, lightDir);
     return (ambient + (1.0 - shadow) * (diffuse + specular));
@@ -146,8 +150,10 @@ vec3 calculatePointLightWithShadowInWorldSpace(
     diffuse *= attenuation;
 
     vec3 specular = vec3(0.0);
-    specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
-    specular *= attenuation;
+    if (material.n_specular > 0) {
+        specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
+        specular *= attenuation;
+    }
 
     float shadow = shadowCalculation(fragPos, shadowMap, far_plane, light.position, viewPos);
     return (ambient + (1.0 - shadow) * (diffuse + specular));
