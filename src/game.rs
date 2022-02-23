@@ -156,8 +156,8 @@ impl Game {
         Ok(())
     }
 
-    pub fn spawn(&mut self, components: impl DynamicBundle) {
-        self.world.get_mut().spawn(components);
+    pub fn spawn(&mut self, components: impl DynamicBundle) -> Entity {
+        self.world.get_mut().spawn(components)
     }
 
     pub fn add_to(&mut self, entity: Entity, component: impl Component) -> Result<(), String> {

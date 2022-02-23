@@ -13,6 +13,11 @@ pub enum TextureType {
     Texture2DMultisample = gl::TEXTURE_2D_MULTISAMPLE as isize,
 }
 
+pub enum TextureFormat {
+    FloatingPoint,
+    UnsignedByte,
+}
+
 #[derive(Debug)]
 pub struct Texture(pub(crate) gl::types::GLuint, pub(crate) gl::types::GLenum, TextureType);
 
@@ -114,8 +119,12 @@ impl Texture {
     }
 
     pub fn allocate_space(&self, width: u32, height: u32) {
-        match self.2 {
-            TextureType::Texture2D => gl_function!(TexImage2D(
+        self.allocate_space_with_format(width, height, TextureFormat::UnsignedByte);
+    }
+
+    pub fn allocate_space_with_format(&self, width: u32, height: u32, format: TextureFormat) {
+        match (self.2, format) {
+            (TextureType::Texture2D, TextureFormat::UnsignedByte) => gl_function!(TexImage2D(
                 self.1,
                 0,
                 gl::RGB as _,
@@ -124,6 +133,17 @@ impl Texture {
                 0,
                 gl::RGB as _,
                 gl::UNSIGNED_BYTE,
+                ptr::null(),
+            )),
+            (TextureType::Texture2D, TextureFormat::FloatingPoint) => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGBA16F as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGB as _,
+                gl::FLOAT,
                 ptr::null(),
             )),
             _ => unimplemented!(),

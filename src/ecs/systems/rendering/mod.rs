@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -29,7 +30,7 @@ static SKYBOX_VERTEX_SHADER: &'static str = "17.1-uniform_buffer_object_vertex_s
 static SKYBOX_FRAGMENT_SHADER: &'static str = "16.1-skybox_fragment.glsl";
 static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
-fn set_lights<T: Light + Send + Sync + 'static>(program: &Program, world: &mut World, name: &str) {
+fn set_lights<T: Light + Send + Sync + Debug + 'static>(program: &Program, world: &mut World, name: &str) {
     let mut index = 0;
     for (_e, light) in world.query_mut::<&T>() {
         let name = format!("{}[{}]", name, index);

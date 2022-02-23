@@ -1,6 +1,6 @@
 use log::error;
 use crate::render_buffer::RenderBuffer;
-use crate::texture::{Texture, TextureType};
+use crate::texture::{Texture, TextureFormat, TextureType};
 
 #[derive(Debug)]
 pub struct FrameBuffer {
@@ -11,13 +11,17 @@ pub struct FrameBuffer {
 
 impl FrameBuffer {
     pub fn new(width: u32, height: u32) -> FrameBuffer {
+        FrameBuffer::new_with_format(width, height, TextureFormat::UnsignedByte)
+    }
+
+    pub fn new_with_format(width: u32, height: u32, format: TextureFormat) -> FrameBuffer {
         let mut frame_buffer = 0 as gl::types::GLuint;
         gl_function!(GenFramebuffers(1, &mut frame_buffer));
         gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
 
         let texture = Texture::new(TextureType::Texture2D);
         texture.just_bind();
-        texture.allocate_space(width, height);
+        texture.allocate_space_with_format(width, height, format);
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
         texture.unbind();
