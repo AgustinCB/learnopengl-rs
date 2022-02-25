@@ -8,6 +8,7 @@ in vec2 TexCoords;
 
 const int MAX_LIGHTS = 32;
 uniform PointLight point_lights[MAX_LIGHTS];
+uniform float radiuses[MAX_LIGHTS];
 uniform vec3 viewPos;
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
@@ -24,7 +25,10 @@ void main() {
 
     vec3 result = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; i++) {
-        result += calculatePointLightWithPositionWithoutMaterial(point_lights[i], point_lights[i].position, 32.0, diffuse, specular, norm, FragPos, viewDir, TexCoords);
+        float distance = length(point_lights[i].position - FragPos);
+        if (distance < radiuses[i]) {
+            result += calculatePointLightWithPositionWithoutMaterial(point_lights[i], point_lights[i].position, 32.0, diffuse, specular, norm, FragPos, viewDir, TexCoords);
+        }
     }
 
     FragColor = vec4(result, 1.0);

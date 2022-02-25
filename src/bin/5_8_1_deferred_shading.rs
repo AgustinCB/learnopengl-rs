@@ -137,9 +137,15 @@ impl System for FrameBufferSystem {
         MultipleRenderTarget::unbind();
         self.program.use_program();
         for (i, (_e, light)) in world.query_mut::<&PointLight>().into_iter().enumerate() {
+            let light_max = light.diffuse.get(0).unwrap()
+                .max(*light.diffuse.get(1).unwrap())
+                .max(*light.diffuse.get(2).unwrap());
+            let radius = (-light.linear + (light.linear.powi(2)
+                - 4f32 * light.quadratic * (light.constant - 256f32/5f32 * light_max)).sqrt()) / (2f32 * light.quadratic);
             let name = format!("point_lights[{}]", i);
             light.set_light_in_program(&self.program, &name);
             self.program.set_uniform_i1(&format!("{}.set", name), 1);
+            self.program.set_uniform_f1(&format!("radiuses[{}]", i), radius);
         }
         Ok(())
     }
@@ -256,8 +262,8 @@ pub fn main() -> Result<(), String> {
             color,
             Vector3::zeros(),
             1f32,
-            1f32,
-            0f32,
+            0.7f32,
+            1.8f32,
         );
         let e = game.spawn_light(point_light, &light_cube)?;
         game.add_to(e, SkipRendering)?;
