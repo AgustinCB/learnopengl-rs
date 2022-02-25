@@ -55,8 +55,8 @@ float shadowCalculationInLightSpace(vec4 fragPosLightSpace, sampler2D shadowMap,
     return shadow;
 }
 
-vec3 calculatePointLightWithPosition(
-    PointLight light, vec3 position, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
+vec3 calculatePointLightWithPositionWithoutMaterial(
+    PointLight light, vec3 position, float shininess, vec3 diffuseColor, vec3 specularColor, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
 ) {
     if (!light.set) return vec3(0.0);
     vec3 lightDir = normalize(position - fragPos);
@@ -64,27 +64,29 @@ vec3 calculatePointLightWithPosition(
     float diff = max(dot(lightDir, normal), 0.0);
 
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
 
     float distance    = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance +
-    light.quadratic * (distance * distance));
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
-    vec3 ambient = vec3(0.0);
-    vec3 diffuse = vec3(0.0);
-    ambient += light.ambient * vec3(texture(material.diffuse0, texCoords));
-    diffuse += light.diffuse * diff * vec3(texture(material.diffuse0, texCoords));
+    vec3 ambient = light.ambient * diffuseColor * attenuation;
+    vec3 diffuse = light.diffuse * diff * diffuseColor * attenuation;
 
-    ambient *= attenuation;
-    diffuse *= attenuation;
-
-    vec3 specular = vec3(0.0);
-    if (material.n_specular > 0) {
-        specular += light.specular * spec * vec3(texture(material.specular0, texCoords));
-        specular *= attenuation;
-    }
+    vec3 specular = light.specular * spec * specularColor * attenuation;
 
     return (ambient + diffuse + specular);
+}
+
+vec3 calculatePointLightWithPosition(
+    PointLight light, vec3 position, Material material, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
+) {
+    float shininess = material.shininess;
+    vec3 diffuse = vec3(texture(material.diffuse0, texCoords));
+    vec3 specular = vec3(0.0);
+    if (material.n_specular > 0) {
+        specular = vec3(texture(material.specular0, texCoords));
+    }
+    return calculatePointLightWithPositionWithoutMaterial(light, position, shininess, diffuse, specular, normal, fragPos, viewDir, texCoords);
 }
 
 vec3 calculatePointLight(

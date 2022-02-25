@@ -50,13 +50,13 @@ impl Light for DirectionalLight {
 #[derive(Debug)]
 pub struct PointLight {
     pub position: Vector3<f32>,
-    ambient: Vector3<f32>,
-    diffuse: Vector3<f32>,
-    specular: Vector3<f32>,
+    pub ambient: Vector3<f32>,
+    pub diffuse: Vector3<f32>,
+    pub specular: Vector3<f32>,
     pub constant: f32,
     pub linear: f32,
     pub quadratic: f32,
-    model: Matrix4<f32>,
+    pub model: Matrix4<f32>,
 }
 
 impl PointLight {

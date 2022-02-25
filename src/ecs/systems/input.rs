@@ -51,6 +51,14 @@ impl System for InputSystem {
             }
             events_by_type.get_mut(&event_type).unwrap().push(event);
         }
+        self.pressed_down.borrow_mut().values_mut().for_each(|e| {
+            match e {
+                Event::KeyDown { repeat, .. } | Event::KeyUp { repeat, .. } => {
+                    *repeat = true;
+                }
+                _ => {}
+            }
+        });
         if let Some(keyboard_events) = events_by_type.remove(&InputType::Keyboard) {
             for e in keyboard_events {
                 match &e {

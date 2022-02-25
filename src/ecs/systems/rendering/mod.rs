@@ -270,7 +270,7 @@ impl RenderingSystem {
     }
 
     fn draw_lights<T: Light + Send + Sync + 'static>(&self, world: &mut World) -> Result<(), String> {
-        for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>().without::<Skybox>() {
+        for (_e, (light, mesh, shader)) in world.query_mut::<(&T, &Mesh, &Shader)>().without::<Skybox>().without::<SkipRendering>() {
             light.set_light_drawing_program_no_globals(
                 &self.light_program, "light.specular", "model",
             );

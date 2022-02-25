@@ -96,6 +96,16 @@ impl Game {
         self.camera.clone()
     }
 
+    pub fn load_model(&mut self, model: &str) -> Result<Model, String> {
+        let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
+        let model = load_model(model, rendering)?;
+        Ok(model)
+    }
+
+    pub fn spawn_loaded_model(&mut self, model: &Model, transform: Transform) -> Result<Entity, String> {
+        Ok(self.world.get_mut().spawn((model.clone(), transform)))
+    }
+
     pub fn spawn_model(&mut self, model: Vec<Mesh>, transform: Transform) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
         Ok(self.world.get_mut().spawn((
@@ -149,11 +159,10 @@ impl Game {
         }, shader)))
     }
 
-    pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<(), String> {
+    pub fn spawn_light<L: Light + Send + Sync + 'static>(&mut self, light: L, mesh: &Mesh) -> Result<Entity, String> {
         let rendering = self.rendering_system.as_mut().ok_or("No Rendering system".to_string())?;
         let shader = rendering.shader_for_mesh(&mesh)?;
-        self.world.get_mut().spawn((mesh.clone(), shader, light));
-        Ok(())
+        Ok(self.world.get_mut().spawn((mesh.clone(), shader, light)))
     }
 
     pub fn spawn(&mut self, components: impl DynamicBundle) -> Entity {

@@ -27,8 +27,7 @@ impl ShaderLoader {
     fn load_file(&self, glsl: &str) -> Result<String, String> {
         let mut content = self.shaders
             .get_file(glsl)
-            .ok_or("Shader not found")
-            .map_err(|s| s.to_string())
+            .ok_or(format!("Shader {} not found", glsl))
             .map(|f| f.contents_utf8())?
             .map(|s| s.to_string())
             .ok_or("Empty file")

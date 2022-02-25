@@ -3,10 +3,25 @@ use log::error;
 use crate::render_buffer::RenderBuffer;
 use crate::texture::{Texture, TextureFormat, TextureType};
 
+fn textures_with_formats(width: u32, height: u32, formats: &[TextureFormat]) -> Vec<Texture> {
+    let textures = Texture::multiple(TextureType::Texture2D, formats.len());
+    for (i, (format, texture)) in formats.iter().zip(&textures).enumerate() {
+        texture.just_bind();
+        texture.allocate_space_with_format(width, height, *format);
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _));
+        texture.unbind();
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, TextureType::Texture2D as u32, texture.0, 0));
+    }
+    textures
+}
+
 #[derive(Debug)]
 pub struct MultipleRenderTarget {
     _render_buffer: Option<RenderBuffer>,
-    resource: gl::types::GLuint,
+    pub resource: gl::types::GLuint,
     pub textures: Vec<Texture>,
 }
 
@@ -16,23 +31,17 @@ impl MultipleRenderTarget {
     }
 
     pub fn new_with_format(width: u32, height: u32, targets: usize, format: TextureFormat) -> MultipleRenderTarget {
+        MultipleRenderTarget::new_with_formats(
+            width, height, &std::iter::repeat(format).take(targets).collect_vec(),
+        )
+    }
+
+    pub fn new_with_formats(width: u32, height: u32, formats: &[TextureFormat]) -> MultipleRenderTarget {
         let mut frame_buffer = 0 as gl::types::GLuint;
         gl_function!(GenFramebuffers(1, &mut frame_buffer));
         gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
 
-        let mut textures = vec![];
-        for i in 0..targets {
-            let texture = Texture::new(TextureType::Texture2D);
-            texture.just_bind();
-            texture.allocate_space_with_format(width, height, format);
-            gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
-            gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
-            gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _));
-            gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _));
-            texture.unbind();
-            gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, TextureType::Texture2D as u32, texture.0, 0));
-            textures.push(texture);
-        }
+        let textures = textures_with_formats(width, height, formats);
 
         let render_buffer = RenderBuffer::new();
         render_buffer.bind();

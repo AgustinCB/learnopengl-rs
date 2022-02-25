@@ -3,6 +3,7 @@ use gl;
 use std::mem::transmute;
 use std::ptr;
 use image::ColorType;
+use itertools::Itertools;
 
 #[derive(Clone, Copy, Debug)]
 pub enum TextureType {
@@ -17,12 +18,21 @@ pub enum TextureType {
 pub enum TextureFormat {
     FloatingPoint,
     UnsignedByte,
+    UnsignedByteWithAlpha,
 }
 
 #[derive(Debug)]
 pub struct Texture(pub(crate) gl::types::GLuint, pub(crate) gl::types::GLenum, TextureType);
 
 impl Texture {
+    pub fn multiple(texture_type: TextureType, size: usize) -> Vec<Texture> {
+        let mut texture_resources = [0].repeat(size);
+        gl_function!(GenTextures(size as i32, texture_resources.as_mut_ptr()));
+        texture_resources.into_iter()
+            .map(|r| Texture(r, texture_type as u32, texture_type))
+            .collect_vec()
+    }
+
     pub fn new(texture_type: TextureType) -> Texture {
         let mut texture = 0 as gl::types::GLuint;
         gl_function!(GenTextures(1, &mut texture));
@@ -133,6 +143,17 @@ impl Texture {
                 height as _,
                 0,
                 gl::RGB as _,
+                gl::UNSIGNED_BYTE,
+                ptr::null(),
+            )),
+            (TextureType::Texture2D, TextureFormat::UnsignedByteWithAlpha) => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGBA as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGBA as _,
                 gl::UNSIGNED_BYTE,
                 ptr::null(),
             )),
