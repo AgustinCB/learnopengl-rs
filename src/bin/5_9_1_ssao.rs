@@ -10,12 +10,13 @@ use include_dir::{Dir, include_dir};
 use itertools::Itertools;
 use nalgebra::{Rotation3, Vector3};
 use rand::{Rng, thread_rng};
+use russimp::texture::TextureType;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use learnopengl::buffer::Buffer;
 use learnopengl::camera::Camera;
 use learnopengl::cube::cube_mesh;
-use learnopengl::ecs::components::{Input, Mesh, Shader as MeshShader, SkipRendering, Transform};
+use learnopengl::ecs::components::{Input, Mesh, Shader as MeshShader, SkipRendering, TextureInfo, Transform};
 use learnopengl::ecs::systems::input::InputType;
 use learnopengl::ecs::systems::system::System;
 use learnopengl::frame_buffer::FrameBuffer;
@@ -40,29 +41,61 @@ const QUAD_VERTICES: [f32; 24] = [
 ];
 static SHADERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/src/bin/shaders");
 
+fn random_kernel() -> Vec<Vector3<f32>> {
+    let mut kernel = vec![];
+    let mut rng = thread_rng();
+    for i in 0..64 {
+        let mut sample = Vector3::new(
+            rng.gen_range(-1f32..1f32), rng.gen_range(-1f32..1f32), rng.gen_range(0f32..1f32)
+        ).normalize();
+        sample *= rng.gen_range(0f32..1f32);
+        let scale = i as f32/64f32;
+        let scale = 0.1f32 + scale * scale * (1f32 - 0.1f32);
+        sample *= scale;
+        kernel.push(sample);
+    }
+    kernel
+}
+
+fn noise_texture() -> Vec<Vector3<f32>> {
+    let mut noise = vec![];
+    let mut rng = thread_rng();
+    for _ in 0..16 {
+        noise.push(
+            Vector3::new(rng.gen_range(-1f32..1f32), rng.gen_range(-1f32..1f32), 0f32)
+        );
+    }
+    noise
+}
+
 #[derive(Clone, Copy, Debug)]
 enum RenderingTarget {
-    DeferredShading = 0,
+    Ssao = 0,
     Position = 1,
     Normal = 2,
     Albedo = 3,
-    Specular = 4,
+    Occlusion = 4,
+    Blur = 5,
 }
 
 impl RenderingTarget {
     fn iterator() -> Cycle<Iter<'static, RenderingTarget>> {
-        static VALUES: [RenderingTarget; 5] = [DeferredShading, Position, Normal, Albedo, Specular];
+        static VALUES: [RenderingTarget; 6] = [Ssao, Position, Normal, Albedo, Occlusion, Blur];
         VALUES.iter().cycle()
     }
 }
 
 struct FrameBufferSystem {
+    blur_program: Program,
+    blur_ssao: FrameBuffer,
     camera: Rc<RefCell<Camera>>,
-    program: Program,
     frame_buffer: MultipleRenderTarget,
-    light_program: Program,
-    quad_program: Program,
     greyscale_quad_program: Program,
+    light_program: Program,
+    program: Program,
+    quad_program: Program,
+    ssao: FrameBuffer,
+    ssao_program: Program,
     targets: RefCell<Peekable<Cycle<Iter<'static, RenderingTarget>>>>,
     vao: VertexArray,
     _vbo: Buffer,
@@ -77,34 +110,54 @@ impl FrameBufferSystem {
     pub fn new(camera: Rc<RefCell<Camera>>) -> Result<FrameBufferSystem, String> {
         let shader_loader = ShaderLoader::new(&SHADERS_DIR);
         let frame_buffer = MultipleRenderTarget::new_with_formats(800, 600, &vec![
-            TextureFormat::FloatingPoint, TextureFormat::FloatingPoint, TextureFormat::UnsignedByteWithAlpha,
+            TextureFormat::FloatingPoint, TextureFormat::FloatingPoint, TextureFormat::UnsignedByte,
         ]);
+        let ssao = FrameBuffer::intermediate_with_format(800, 600, TextureFormat::Grey);
+        let blur_ssao = FrameBuffer::intermediate_with_format(800, 600, TextureFormat::Grey);
         let quad_program = Program::new(vec![
-            Shader::new(ShaderType::Vertex as _, include_str!("shaders/15.1-postprocessing_vertex.glsl"))?,
-            Shader::new(ShaderType::Fragment as _, include_str!("shaders/26.1-quad_fragment.glsl"))?
+            shader_loader.load(ShaderType::Vertex, "15.1-postprocessing_vertex.glsl")?,
+            shader_loader.load(ShaderType::Fragment, "26.1-quad_fragment.glsl")?
         ])?;
         let greyscale_quad_program = Program::new(vec![
-            Shader::new(ShaderType::Vertex as _, include_str!("shaders/15.1-postprocessing_vertex.glsl"))?,
-            Shader::new(ShaderType::Fragment as _, include_str!("shaders/26.1-greyscale_quad_fragment.glsl"))?
+            shader_loader.load(ShaderType::Vertex, "15.1-postprocessing_vertex.glsl")?,
+            shader_loader.load(ShaderType::Fragment, "27.1-greyscale_quad_fragment.glsl")?
         ])?;
         let program = Program::new(vec![
             Shader::new(ShaderType::Vertex as _, include_str!("shaders/25.1-blur_vertex.glsl"))?,
-            shader_loader.load(ShaderType::Fragment, "26.1-lighting_pass_fragment.glsl")?,
+            shader_loader.load(ShaderType::Fragment, "27.1-lighting_pass_fragment.glsl")?,
         ])?;
         let light_program = Program::new(vec![
-            Shader::new(ShaderType::Vertex as _, include_str!("shaders/26.1-bloom_light_vertex.glsl"))?,
-            Shader::new(ShaderType::Fragment as _, include_str!("shaders/26.1-bloom_light_fragment.glsl"))?,
+            shader_loader.load(ShaderType::Vertex as _, "26.1-bloom_light_vertex.glsl")?,
+            shader_loader.load(ShaderType::Fragment as _, "26.1-bloom_light_fragment.glsl")?,
         ])?;
-        quad_program.use_program();
-        quad_program.set_uniform_i1("texture1", 0);
+        let ssao_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, "15.1-postprocessing_vertex.glsl")?,
+            shader_loader.load(ShaderType::Fragment, "27.1-ssao_fragment.glsl")?,
+        ])?;
+        let blur_program = Program::new(vec![
+            shader_loader.load(ShaderType::Vertex, "15.1-postprocessing_vertex.glsl")?,
+            shader_loader.load(ShaderType::Fragment, "27.1-blur_fragment.glsl")?,
+        ])?;
         greyscale_quad_program.use_program();
         greyscale_quad_program.set_uniform_i1("texture1", 0);
+        quad_program.use_program();
+        quad_program.set_uniform_i1("texture1", 0);
         program.use_program();
         program.set_uniform_i1("gPosition", 0);
         program.set_uniform_i1("gNormal", 1);
-        program.set_uniform_i1("gAlbedoSpec", 2);
+        program.set_uniform_i1("gAlbedo", 2);
+        program.set_uniform_i1("ssao", 3);
         light_program.use_program();
         light_program.bind_uniform_block("Matrices", 0);
+        ssao_program.use_program();
+        ssao_program.set_uniform_i1("gPosition", 0);
+        ssao_program.set_uniform_i1("gNormal", 1);
+        for (i, sample) in random_kernel().into_iter().enumerate() {
+            ssao_program.set_uniform_v3(&format!("samples[{}]", i), sample);
+        }
+        for (i, noise) in noise_texture().into_iter().enumerate() {
+            ssao_program.set_uniform_v3(&format!("noise[{}]", i), noise);
+        }
         let vao = VertexArray::new();
         let vbo = Buffer::new(gl::ARRAY_BUFFER);
         vao.bind();
@@ -113,16 +166,44 @@ impl FrameBufferSystem {
         VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 0, 4, 2, 0, false);
         VertexArray::set_vertex_attrib_with_padding::<f32>(gl::FLOAT, 1, 4, 2, 2, false);
         Ok(FrameBufferSystem {
+            blur_program,
+            blur_ssao,
             camera,
-            light_program,
-            program,
             frame_buffer,
             greyscale_quad_program,
+            light_program,
+            program,
             quad_program,
+            ssao,
+            ssao_program,
             vao,
             targets: RefCell::new(RenderingTarget::iterator().peekable()),
             _vbo: vbo,
         })
+    }
+
+    fn render_ssao_texture(&self) {
+        gl_function!(Enable(gl::DEPTH_TEST));
+        self.ssao.bind();
+        gl_function!(Clear(gl::COLOR_BUFFER_BIT));
+        self.ssao_program.use_program();
+        let camera = (*self.camera).borrow();
+        self.ssao_program.set_uniform_matrix4("projection", &camera.projection());
+        for (i, texture) in self.frame_buffer.textures[0..2].iter().enumerate() {
+            texture.bind(gl::TEXTURE0 + i as u32);
+        }
+        gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
+        FrameBuffer::unbind();
+    }
+
+    fn render_blur_ssao_texture(&self) {
+        self.render_ssao_texture();
+        self.blur_ssao.bind();
+        gl_function!(Clear(gl::COLOR_BUFFER_BIT));
+        self.blur_program.use_program();
+        self.ssao.texture.bind(gl::TEXTURE0);
+        gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
+        FrameBuffer::unbind();
     }
 }
 
@@ -137,15 +218,9 @@ impl System for FrameBufferSystem {
         MultipleRenderTarget::unbind();
         self.program.use_program();
         for (i, (_e, light)) in world.query_mut::<&PointLight>().into_iter().enumerate() {
-            let light_max = light.diffuse.get(0).unwrap()
-                .max(*light.diffuse.get(1).unwrap())
-                .max(*light.diffuse.get(2).unwrap());
-            let radius = (-light.linear + (light.linear.powi(2)
-                - 4f32 * light.quadratic * (light.constant - 256f32/5f32 * light_max)).sqrt()) / (2f32 * light.quadratic);
             let name = format!("point_lights[{}]", i);
             light.set_light_in_program(&self.program, &name);
             self.program.set_uniform_i1(&format!("{}.set", name), 1);
-            self.program.set_uniform_f1(&format!("radiuses[{}]", i), radius);
         }
         Ok(())
     }
@@ -200,19 +275,30 @@ impl System for FrameBufferSystem {
                 self.frame_buffer.textures.get(2).unwrap().bind(gl::TEXTURE0);
                 gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
             },
-            RenderingTarget::Specular => {
+            RenderingTarget::Occlusion => {
+                gl_function!(Enable(gl::DEPTH_TEST));
+                self.render_ssao_texture();
                 gl_function!(Disable(gl::DEPTH_TEST));
                 self.greyscale_quad_program.use_program();
-                self.frame_buffer.textures.get(2).unwrap().bind(gl::TEXTURE0);
+                self.ssao.texture.bind(gl::TEXTURE0);
                 gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
-            },
-            RenderingTarget::DeferredShading => {
+            }
+            RenderingTarget::Blur => {
                 gl_function!(Enable(gl::DEPTH_TEST));
+                self.render_blur_ssao_texture();
+                gl_function!(Disable(gl::DEPTH_TEST));
+                self.greyscale_quad_program.use_program();
+                self.blur_ssao.texture.bind(gl::TEXTURE0);
+                gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
+            }
+            RenderingTarget::Ssao => {
+                gl_function!(Enable(gl::DEPTH_TEST));
+                self.render_blur_ssao_texture();
                 self.program.use_program();
-                self.program.set_uniform_v3("viewPos", self.camera.borrow().position());
                 for (i, texture) in self.frame_buffer.textures.iter().enumerate() {
                     texture.bind(gl::TEXTURE0 + i as u32);
                 }
+                self.ssao.texture.bind(gl::TEXTURE0 + self.frame_buffer.textures.len() as u32);
                 gl_function!(DrawArrays(gl::TRIANGLES, 0, 6));
 
                 gl_function!(BindFramebuffer(gl::READ_FRAMEBUFFER, self.frame_buffer.resource));
@@ -241,58 +327,48 @@ pub fn main() -> Result<(), String> {
         600,
         60,
         Vector3::new(0f32, 0f32, 0f32),
-        "17.1-uniform_buffer_objects_vertex.glsl",
-        "26.1-gbuffer_fragment.glsl",
+        "27.1-geometry_vertex.glsl",
+        "27.1-gbuffer_fragment.glsl",
         "17.1-uniform_buffer_objects_vertex.glsl",
         "25.1-bloom_light_fragment.glsl",
         16,
     )?;
-    let mut rnd = thread_rng();
-    let mut light_cube = cube_mesh(vec![]);
-    light_cube.vertices = light_cube.vertices.iter().map(|v| v * 0.25).collect_vec();
-    for _ in 0..32 {
-        let position = Vector3::new(
-            rnd.gen_range(-3f32..3f32),
-            rnd.gen_range(-3f32..3f32),
-            rnd.gen_range(-3f32..3f32),
-        );
-        let color = Vector3::new(
-            rnd.gen_range(0.5f32..1f32),
-            rnd.gen_range(0.5f32..1f32),
-            rnd.gen_range(0.5f32..1f32),
-        );
-        let point_light = PointLight::new(
-            position,
-            Vector3::new(0.1f32, 0.1f32, 0.1f32),
-            color,
-            Vector3::zeros(),
-            1f32,
-            0.7f32,
-            1.8f32,
-        );
-        let e = game.spawn_light(point_light, &light_cube)?;
-        game.add_to(e, SkipRendering)?;
-    }
+    let light_cube = cube_mesh(vec![]);
+    let point_light = PointLight::new(
+        Vector3::new(0f32, 4f32, 0f32),
+        Vector3::new(0.1f32, 0.1f32, 0.35f32),
+        Vector3::new(0.2f32, 0.2f32, 0.7f32),
+        Vector3::new(0.2f32, 0.2f32, 0.7f32),
+        1f32,
+        0.09f32,
+        0.032f32,
+    );
+    let e = game.spawn_light(point_light, &light_cube)?;
+    game.add_to(e, SkipRendering)?;
     let model_path = format!("{}/../LOGL/resources/objects/backpack/backpack.obj", env!("CARGO_MANIFEST_DIR"));
+    let mut cube = cube_mesh(vec![
+        TextureInfo {
+            id: 0,
+            texture_type: TextureType::Diffuse,
+            path: format!("{}/resource/marble.jpg", env!("CARGO_MANIFEST_DIR")),
+        },
+    ]);
+    cube.normals = Some(
+        cube.normals.clone().unwrap().into_iter()
+            .map(|v| v * -1f32)
+            .collect_vec()
+    );
+    game.spawn_mesh(&cube, Transform {
+        position: Vector3::new(0f32, 3.5f32, 0f32),
+        rotation: Rotation3::identity(),
+        scale: Vector3::new(20f32, 9f32, 20f32),
+    })?;
     let model = game.load_model(&model_path)?;
-
-    for position in vec![
-        Vector3::new(-3f32, -0.5f32, -3f32),
-        Vector3::new(0f32, -0.5f32, -3f32),
-        Vector3::new(3f32, -0.5f32, -3f32),
-        Vector3::new(-3f32, -0.5f32, 0f32),
-        Vector3::new(0f32, -0.5f32, 0f32),
-        Vector3::new(3f32, -0.5f32, 0f32),
-        Vector3::new(-3f32, -0.5f32, 3f32),
-        Vector3::new(0f32, -0.5f32, 3f32),
-        Vector3::new(3f32, -0.5f32, 3f32),
-    ] {
-        game.spawn_loaded_model(&model, Transform {
-            position,
-            rotation: Rotation3::identity(),
-            scale: Vector3::new(1f32, 1f32, 1f32),
-        })?;
-    }
+    game.spawn_loaded_model(&model, Transform {
+        position: Vector3::zeros(),
+        rotation: Rotation3::from_axis_angle(&Vector3::x_axis(), 270f32.to_radians()),
+        scale: Vector3::new(1f32, 1f32, 1f32),
+    })?;
     game.spawn((Input::new(vec![InputType::Keyboard]), RenderingControl {
         backward: Keycode::Q,
         forward: Keycode::E,

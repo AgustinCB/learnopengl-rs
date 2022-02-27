@@ -46,6 +46,30 @@ impl FrameBuffer {
         }
     }
 
+    pub fn intermediate_with_format(width: u32, height: u32, format: TextureFormat) -> FrameBuffer {
+        let mut frame_buffer = 0 as gl::types::GLuint;
+        gl_function!(GenFramebuffers(1, &mut frame_buffer));
+        gl_function!(BindFramebuffer(gl::FRAMEBUFFER, frame_buffer));
+
+        let texture = Texture::new(TextureType::Texture2D);
+        texture.just_bind();
+        texture.allocate_space_with_format(width, height, format);
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _));
+        gl_function!(FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, TextureType::Texture2D as u32, texture.0, 0));
+
+        let status = gl_function!(CheckFramebufferStatus(gl::FRAMEBUFFER));
+        if status != gl::FRAMEBUFFER_COMPLETE {
+            error!("Error creating frame buffer, status code {}", status);
+        }
+        FrameBuffer::unbind();
+        FrameBuffer {
+            texture,
+            _render_buffer: None,
+            resource: frame_buffer,
+        }
+    }
+
     pub fn intermediate(width: u32, height: u32) -> FrameBuffer {
         let mut frame_buffer = 0 as gl::types::GLuint;
         gl_function!(GenFramebuffers(1, &mut frame_buffer));

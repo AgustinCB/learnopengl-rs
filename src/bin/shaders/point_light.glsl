@@ -55,6 +55,28 @@ float shadowCalculationInLightSpace(vec4 fragPosLightSpace, sampler2D shadowMap,
     return shadow;
 }
 
+vec3 calculatePointLightWithPositionWithoutMaterialWithOcculsion(
+    PointLight light, float occlusion, vec3 position, float shininess, vec3 diffuseColor, vec3 specularColor, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
+) {
+    if (!light.set) return vec3(0.0);
+    vec3 lightDir = normalize(position - fragPos);
+
+    float diff = max(dot(lightDir, normal), 0.0);
+
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+
+    float distance    = length(light.position - fragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+    vec3 ambient = light.ambient * diffuseColor * occlusion;
+    vec3 diffuse = light.diffuse * diff * diffuseColor * attenuation;
+
+    vec3 specular = light.specular * spec * specularColor * attenuation;
+
+    return (ambient + diffuse + specular);
+}
+
 vec3 calculatePointLightWithPositionWithoutMaterial(
     PointLight light, vec3 position, float shininess, vec3 diffuseColor, vec3 specularColor, vec3 normal, vec3 fragPos, vec3 viewDir, vec2 texCoords
 ) {
@@ -69,7 +91,7 @@ vec3 calculatePointLightWithPositionWithoutMaterial(
     float distance    = length(light.position - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
-    vec3 ambient = light.ambient * diffuseColor * attenuation;
+    vec3 ambient = light.ambient * diffuseColor;
     vec3 diffuse = light.diffuse * diff * diffuseColor * attenuation;
 
     vec3 specular = light.specular * spec * specularColor * attenuation;

@@ -8,8 +8,8 @@ fn textures_with_formats(width: u32, height: u32, formats: &[TextureFormat]) -> 
     for (i, (format, texture)) in formats.iter().zip(&textures).enumerate() {
         texture.just_bind();
         texture.allocate_space_with_format(width, height, *format);
-        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _));
-        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _));
+        gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _));
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _));
         gl_function!(TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _));
         texture.unbind();

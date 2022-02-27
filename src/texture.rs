@@ -19,6 +19,7 @@ pub enum TextureFormat {
     FloatingPoint,
     UnsignedByte,
     UnsignedByteWithAlpha,
+    Grey,
 }
 
 #[derive(Debug)]
@@ -129,6 +130,34 @@ impl Texture {
         }
     }
 
+    pub fn set_image_2d_with_format<T>(&self, width: u32, height: u32, data: &[T], format: TextureFormat) {
+        match (self.2, format) {
+            (TextureType::Texture2D, TextureFormat::UnsignedByteWithAlpha) => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGBA as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGBA as _,
+                gl::UNSIGNED_BYTE,
+                transmute(&(data[0]) as *const T)
+            )),
+            (TextureType::Texture2D, TextureFormat::FloatingPoint) => gl_function!(TexImage2D(
+                self.1,
+                0,
+                gl::RGBA16F as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGBA as _,
+                gl::FLOAT,
+                transmute(&(data[0]) as *const T)
+            )),
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn allocate_space(&self, width: u32, height: u32) {
         self.allocate_space_with_format(width, height, TextureFormat::UnsignedByte);
     }
@@ -164,9 +193,12 @@ impl Texture {
                 width as _,
                 height as _,
                 0,
-                gl::RGB as _,
+                gl::RGBA as _,
                 gl::FLOAT,
                 ptr::null(),
+            )),
+            (TextureType::Texture2D, TextureFormat::Grey) => gl_function!(TexImage2D(
+                self.1, 0, gl::RED as _, width as _, height as _, 0, gl::RED as _, gl::FLOAT, ptr::null(),
             )),
             _ => unimplemented!(),
         }

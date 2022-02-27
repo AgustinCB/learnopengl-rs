@@ -94,10 +94,10 @@ impl Program {
     fn find_uniform(&self, uniform: &str) -> gl::types::GLint {
         let mut cache = self.uniforms.borrow_mut();
         match cache.get(uniform) {
-            Some(uniform) if *uniform == -1 => {
+            Some(location) if *location == -1 => {
                 warn!("Uniform {} does not exist", uniform);
-                *uniform
-            },
+                *location
+            }
             Some(uniform) => *uniform,
             None => {
                 let c_str = CString::new(uniform).unwrap();
