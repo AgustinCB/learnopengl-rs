@@ -206,6 +206,9 @@ impl Mesh {
         let mut specular_index = 0;
         let mut normal_index = 0;
         let mut height_index = 0;
+        let mut metallic_index = 0;
+        let mut roughness_index = 0;
+        let mut ao_index = 0;
         if let Some(infos) = &self.textures {
             for (texture, info) in textures.iter().zip(infos.iter()) {
                 texture.bind(gl::TEXTURE0 + info.id as u32);
@@ -225,6 +228,18 @@ impl Mesh {
                     let index = height_index;
                     height_index += 1;
                     ("height", index)
+                } else if info.texture_type == TextureType::Metalness {
+                    let index = metallic_index;
+                    metallic_index += 1;
+                    ("metalness", index)
+                } else if info.texture_type == TextureType::Roughness {
+                    let index = roughness_index;
+                    roughness_index += 1;
+                    ("roughness", index)
+                } else if info.texture_type == TextureType::AmbientOcclusion {
+                    let index = ao_index;
+                    ao_index += 1;
+                    ("ao", index)
                 } else {
                     panic!("Can't happen");
                 };

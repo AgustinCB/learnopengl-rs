@@ -383,7 +383,8 @@ impl RenderingSystem {
         match &mesh.textures {
             Some(textures) => {
                 let normal_texture = textures.iter().find(|t| t.texture_type == AssimpTextureType::Normals);
-                if normal_texture.is_some() {
+                let metalness_texture = textures.iter().find(|t| t.texture_type == AssimpTextureType::Metalness);
+                if normal_texture.is_some() && metalness_texture.is_none() {
                     &self.normal_mapping_rendering.get_program_for_mesh(mesh)
                 } else {
                     &self.meshes_program
