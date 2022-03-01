@@ -35,3 +35,4 @@ pub mod frame_buffer;
 pub mod render_buffer;
 pub mod multiple_render_target;
 pub mod ping_pong_frame_buffer;
+pub mod sphere;

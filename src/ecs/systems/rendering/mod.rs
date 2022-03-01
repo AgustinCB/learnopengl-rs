@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::Path;
+use std::ptr;
 use std::rc::Rc;
 use std::sync::Arc;
 use hecs::{Entity, World};
@@ -153,6 +154,7 @@ impl RenderingSystem {
         if let Some(elements_buffer) = &shader.elements_buffer {
             match &mesh.indices {
                 Some(indices) => {
+                    elements_buffer.bind();
                     elements_buffer.set_data(indices, gl::STATIC_DRAW);
                 }
                 None => Err("Elements buffer without indices")?,
@@ -274,20 +276,25 @@ impl RenderingSystem {
             light.set_light_drawing_program_no_globals(
                 &self.light_program, "light.specular", "model",
             );
-            let n_vertices = mesh.vertices.len();
-            shader.vertex_array.bind();
-            gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32,));
-            VertexArray::unbind();
+            Self::draw_mesh(mesh, shader);
         }
         Ok(())
     }
 
+    fn draw_mesh(mesh: &Mesh, shader: &Shader) {
+        let n_vertices = mesh.len();
+        shader.vertex_array.bind();
+        if mesh.indices.is_some() {
+            gl_function!(DrawElements(gl::TRIANGLE_STRIP, n_vertices as i32, gl::UNSIGNED_INT, ptr::null()));
+        } else {
+            gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32,));
+        }
+        VertexArray::unbind();
+    }
+
     fn render_mesh(&self, program: &Program, shader: &Shader, mesh: &Mesh) {
         mesh.set_program(&program, &shader.textures);
-        let n_vertices = mesh.vertices.len();
-        shader.vertex_array.bind();
-        gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
-        VertexArray::unbind();
+        Self::draw_mesh(mesh, shader);
     }
 
     fn render_mesh_border(&self, meshes: &[(&Mesh, &Shader, &Border, &Transform)]) {
@@ -295,10 +302,7 @@ impl RenderingSystem {
             let model = transform.get_model_matrix() * Scale3::new(border.scale, border.scale, border.scale).to_homogeneous();
             self.border_program.set_uniform_matrix4("model", &model);
             self.border_program.set_uniform_v3("borderColor", border.color);
-            let n_vertices = mesh.vertices.len();
-            shader.vertex_array.bind();
-            gl_function!(DrawArrays(gl::TRIANGLES, 0, n_vertices as i32));
-            VertexArray::unbind();
+            Self::draw_mesh(mesh, shader);
         }
     }
 
@@ -426,6 +430,9 @@ impl RenderingSystem {
                     },
                     UniformValue::Matrix(m) => {
                         program.set_uniform_matrix4(eu.name, m);
+                    }
+                    UniformValue::Vector3(v) => {
+                        program.set_uniform_v3(eu.name, *v);
                     }
                 }
             }

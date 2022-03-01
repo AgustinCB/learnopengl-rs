@@ -32,6 +32,7 @@ pub enum UniformValue {
     Float(f32),
     Texture(u32),
     Matrix(Matrix4<f32>),
+    Vector3(Vector3<f32>),
 }
 #[derive(Clone, Debug)]
 pub struct ExtraUniform {
@@ -192,6 +193,14 @@ pub struct Mesh {
 }
 
 impl Mesh {
+    pub fn len(&self) -> usize {
+        if let Some(indices) = &self.indices {
+            indices.len()
+        } else {
+            self.vertices.len()
+        }
+    }
+
     pub fn set_program(&self, program: &Program, textures: &[Arc<Texture>]) {
         let mut diffuse_index = 0;
         let mut specular_index = 0;
