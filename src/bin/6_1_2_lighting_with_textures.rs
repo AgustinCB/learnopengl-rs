@@ -13,13 +13,17 @@ use learnopengl::sphere::sphere_mesh;
 const N_ROWS: usize = 7;
 const N_COLUMNS: usize = 7;
 const SPACING: f32 = 2.5f32;
+#[cfg(target_os = "macos")]
+    const SAMPLES: u8 = 16;
+#[cfg(target_os = "linux")]
+    const SAMPLES: u8 = 4;
 
 pub fn main() -> Result<(), String> {
     let mut game = Game::new_with_anti_alias(
         "PBR lighting", 800, 600, 60, Vector3::new(0f32, 0f32, 0f32),
         "28.1-pbr_vertex.glsl", "28.2-pbr.glsl",
         "17.1-uniform_buffer_objects_vertex.glsl", "25.1-bloom_light_fragment.glsl",
-        16,
+        SAMPLES,
     )?;
     let mut light_cube = cube_mesh(vec![]);
     light_cube.vertices = light_cube.vertices.iter().map(|v| v * 0.25).collect_vec();

@@ -23,7 +23,10 @@ impl Window {
 
         attrs.set_stencil_size(8);
         attrs.set_context_major_version(4);
-        attrs.set_context_minor_version(1);
+        #[cfg(target_os = "macos")]
+            attrs.set_context_minor_version(1);
+        #[cfg(target_os = "linux")]
+            attrs.set_context_minor_version(6);
         attrs.set_context_profile(GLProfile::Core);
         #[cfg(target_os = "macos")]
             attrs.set_context_flags().forward_compatible().set();
